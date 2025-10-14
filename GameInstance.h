@@ -114,15 +114,16 @@ public:
 			overReelSet = allReelSets["over"];
 			underReelSet = allReelSets["under"];
 
-			int reelID = 1;
-			//int reelID = ReelsPD.getRandomPrize();
+			//int reelID = 1;
+			int reelID = ReelsPD.getRandomPrize();
 			lastReelSetID = reelID;
 			switch (reelID) {
 			case 0:
 				activeReels = allReelSets["baseLow"];
 				break;
 			case 1:
-				activeReels = allReelSets["baseHigh"];
+				//activeReels = allReelSets["baseHigh"];
+				activeReels = allReelSets["baseTumble"];
 				break;
 			}
 			activeReels.spinReels();
@@ -228,7 +229,7 @@ public:
 
 		}
 
-		stats.recordTumbleFrequency(tumbleCount);
+		//stats.recordTumbleFrequency(tumbleCount);
 		stats.recordFreeSpins(numFreeGames);
 		// pays = {baseWin, moneySymbolWins, wheelPotWins}
 		return pays;
