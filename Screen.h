@@ -79,12 +79,12 @@ public:
 
 
     // add symbols to over/under reels from ReelSet
-    void addSideSymbols(bool over, const ReelSet& rs, std::vector<bool> boostVec = { 0,0,0,0 }) {
+ /*   void addSideSymbols(bool over, const ReelSet& rs, std::vector<bool> boostVec = { 0,0,0,0 }) {
         const auto& strip = rs.reels[0].symbols;
         for (int i = 0; i < SIDE_LEN; ++i)
             setSideSymbol(over, i, strip[(rs.currentIndices[0] + i) % strip.size()], boostVec[i]);
     }
-
+*/
 
     // Resize the screen based on fixed number of rows
     void resize(int _numReels, int _numRows) {
@@ -344,6 +344,89 @@ public:
     }
    
 
+    // New method to add side symbols from an integrated ReelSet
+    void addSideSymbolsFromIntegratedReelSet(const ReelSet& rs,
+        const std::vector<bool>& overBoostVec = { 0,0,0,0 },
+        const std::vector<bool>& underBoostVec = { 0,0,0,0 }) {
+        // Add over symbols if the reelset has them
+        if (rs.hasOverReel()) {
+            const auto& overStrip = rs.getOverReel()->symbols;
+            for (int i = 0; i < SIDE_LEN; ++i) {
+                setSideSymbol(true, i,
+                    overStrip[(rs.currentOverIndex + i) % overStrip.size()],
+                    overBoostVec[i]);
+            }
+        }
+
+        // Add under symbols if the reelset has them
+        if (rs.hasUnderReel()) {
+            const auto& underStrip = rs.getUnderReel()->symbols;
+            for (int i = 0; i < SIDE_LEN; ++i) {
+                setSideSymbol(false, i,
+                    underStrip[(rs.currentUnderIndex + i) % underStrip.size()],
+                    underBoostVec[i]);
+            }
+        }
+    }
+
+    // Modified cascade method for integrated over/under reels
+    void cascadeSideRowIntegrated(bool over, ReelSet& rs, int boostProb) {
+        // Check if this reelset has the requested side reel
+        if (over && !rs.hasOverReel()) return;
+        if (!over && !rs.hasUnderReel()) return;
+
+        auto& row = over ? overRow : underRow;
+        const auto& strip = over ? rs.getOverReel()->symbols : rs.getUnderReel()->symbols;
+        const int N = static_cast<int>(strip.size());
+        if (N == 0) return;
+
+        // Get current index
+        int& currentIndex = over ? rs.currentOverIndex : rs.currentUnderIndex;
+
+        // left = index for row[0]; next = symbol immediately AFTER the rightmost
+        int left = currentIndex;
+        int next = (left + SIDE_LEN) % N;      // <-- start AFTER the visible window
+
+        for (int pos = 0; pos < SIDE_LEN; ++pos) {
+            while (row[pos].name.empty()) {
+                // shift visible window one step LEFT
+                for (int p = pos; p < SIDE_LEN - 1; ++p)
+                    row[p] = row[p + 1];
+
+                // bring the next symbol in on the RIGHT
+                bool boosted = getRand("TB", 100) < boostProb;
+                row[SIDE_LEN - 1] = SideCell{ strip[next], boosted };
+
+                // the window advanced by one:
+                left = (left + 1) % N;
+                next = (next + 1) % N;
+            }
+        }
+        currentIndex = left;           // <-- persist new leftmost index
+    }
+
+    // Alternative: Keep your existing addSideSymbols method for backward compatibility
+    // and add an overload for integrated reelsets:
+    void addSideSymbols(bool over, const ReelSet& rs, const std::vector<bool>& boostVec = { 0,0,0,0 }) {
+        // Check if this is an integrated reelset with over/under reels
+        if (over && rs.hasOverReel()) {
+            const auto& strip = rs.getOverReel()->symbols;
+            for (int i = 0; i < SIDE_LEN; ++i)
+                setSideSymbol(over, i, strip[(rs.currentOverIndex + i) % strip.size()], boostVec[i]);
+        }
+        else if (!over && rs.hasUnderReel()) {
+            const auto& strip = rs.getUnderReel()->symbols;
+            for (int i = 0; i < SIDE_LEN; ++i)
+                setSideSymbol(over, i, strip[(rs.currentUnderIndex + i) % strip.size()], boostVec[i]);
+        }
+        else {
+            // Fallback to old behavior for backward compatibility
+            // (assuming single reel in reels[0] contains the side symbols)
+            const auto& strip = rs.reels[0].symbols;
+            for (int i = 0; i < SIDE_LEN; ++i)
+                setSideSymbol(over, i, strip[(rs.currentIndices[0] + i) % strip.size()], boostVec[i]);
+        }
+    }
 
     void markPosition(int reel, int row) {
 		markedPositions.push_back(make_pair(reel, row));

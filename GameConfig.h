@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -12,7 +11,6 @@
 class Stats; // Forward declaration of Stats class
 
 class GameConfig {
-    //  friend class Stats; // Declare Stats as a friend
 private:
     std::string filename;
     std::mutex config_mutex;
@@ -42,7 +40,6 @@ public:
         parseRTPHeaders();    // Parse RTP headers after loading the file
     }
 
-
     template<typename T>
     T parseVar(const std::string& key) {
         std::lock_guard<std::mutex> lock(config_mutex);
@@ -54,7 +51,6 @@ public:
 
     template<typename T>
     std::vector<T> parseVec(const std::string& key, std::string subLevel = "") {
-        //   std::lock_guard<std::mutex> lock(config_mutex);
         if (!config_json.contains(key)) {
             throw std::invalid_argument("Key not found in configuration: " + key);
         }
@@ -82,7 +78,6 @@ public:
         return rtpHeaders;
     }
 
-    //get gameName, RTP, gameMode in one method
     std::vector<std::string> getGameInfo() {
         std::vector<std::string> gameInfo;
         gameInfo.push_back(parseVar<std::string>("gameName"));
@@ -91,13 +86,11 @@ public:
         return gameInfo;
     }
 
-
     SymbolStructure parseSymbolStructure() {
         std::vector<std::string> symbols;
         std::vector<std::vector<int>> paytable;
         std::vector<std::string> symbolNames = config_json["paytable"]["symbols"].get<std::vector<std::string>>();
-        std::unordered_map<std::string, std::vector<std::string>> wildSubs; // To store wild substitutions
-        //auto wildSubsConfig = config["paytable"]["wildSubs"].get<std::unordered_map<std::string, std::vector<std::string>>>();
+        std::unordered_map<std::string, std::vector<std::string>> wildSubs;
 
         for (int i = 0; i < symbolNames.size(); i++) {
             symbols.push_back(symbolNames[i]);
@@ -112,7 +105,6 @@ public:
         }
 
         return SymbolStructure(symbols, paytable, wildSubs);
-
     }
 
     ReelSet parseReelSet(const std::string& reelSetName, std::string maskName = "") {
@@ -121,6 +113,8 @@ public:
             if (item["name"] == reelSetName) {
                 std::vector<Reel> reels;
                 auto& reelsConfig = item["reels"];
+
+                // Parse main reels
                 for (auto& reelConfig : reelsConfig) {
                     std::vector<std::string> symbols = reelConfig["symbols"].get<std::vector<std::string>>();
                     std::vector<int> weights;
@@ -129,8 +123,47 @@ public:
                     }
                     reels.push_back(Reel(symbols, weights));
                 }
+
                 std::string mask = maskName.empty() ? static_cast<std::string>(item["mask"]) : maskName;
-                return ReelSet(reels, mask);
+
+                // Check for optional over/under reels
+                Reel* overReel = nullptr;
+                Reel* underReel = nullptr;
+                std::string overMask = "";
+                std::string underMask = "";
+
+                if (item.contains("overReel")) {
+                    auto& overConfig = item["overReel"];
+                    std::vector<std::string> overSymbols = overConfig["symbols"].get<std::vector<std::string>>();
+                    std::vector<int> overWeights;
+                    if (overConfig.contains("weights")) {
+                        overWeights = overConfig["weights"].get<std::vector<int>>();
+                    }
+                    overReel = new Reel(overSymbols, overWeights);
+                    overMask = overConfig.contains("mask") ?
+                        static_cast<std::string>(overConfig["mask"]) : mask + "_OVER";
+                }
+
+                if (item.contains("underReel")) {
+                    auto& underConfig = item["underReel"];
+                    std::vector<std::string> underSymbols = underConfig["symbols"].get<std::vector<std::string>>();
+                    std::vector<int> underWeights;
+                    if (underConfig.contains("weights")) {
+                        underWeights = underConfig["weights"].get<std::vector<int>>();
+                    }
+                    underReel = new Reel(underSymbols, underWeights);
+                    underMask = underConfig.contains("mask") ?
+                        static_cast<std::string>(underConfig["mask"]) : mask + "_UNDER";
+                }
+
+                // Create ReelSet with optional over/under reels
+                ReelSet result(reels, mask, overReel, overMask, underReel, underMask);
+
+                // Clean up temporary pointers
+                delete overReel;
+                delete underReel;
+
+                return result;
             }
         }
         throw std::invalid_argument("ReelSet not found: " + reelSetName);
@@ -145,16 +178,6 @@ public:
         }
         return reelSetsMap;
     }
-
-    //std::vector<ReelSet> parseReelSequence() {
-    //    std::vector<ReelSet> reelSets;
-    //    for (auto& item : this->config_json["reel_sequence"].items()) {
-    //        std::string key = item.key();
-    //        // Use 'key' as needed here
-    //        reelSets.push_back(parseReelSet(key));
-    //    }
-    //    return reelSets;
-    //}
 
     // Get PrizeDistribution object from config
     template <typename PrizeType>
@@ -185,7 +208,6 @@ public:
         return PrizeDistribution<PrizeType>(mask, prizes, weights);
     }
 
-
     // Get vector of PrizeDistribution objects from config
     template <typename PrizeType>
     std::vector<PrizeDistribution<PrizeType>> parsePDVec(const std::string& prizeDistName) {
@@ -197,7 +219,4 @@ public:
         }
         return prizeDists;
     }
-
-
-
 };

@@ -90,13 +90,12 @@ public:
 		vector<double> baseVector, freeVector;
 		double basePay, tempPay;
 		ReelSet activeReels;
-
 		int globalMult;
 
-		
 		boostPDVec.resize(boostWeights.size());
 		for (int i = 0; i < boostWeights.size(); ++i) {
-			boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1), std::vector<int>{0, 1}, boostWeights[i]);
+			boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1),
+				std::vector<int>{0, 1}, boostWeights[i]);
 		}
 
 		for (long long i = 0; i < numSpins; ++i) {
@@ -104,31 +103,31 @@ public:
 			globalMult = 1;
 
 			RandomLogGenerator::startRound();
-			std::vector<double> pays(payHeaders.size(), 0); // You can adjust the size based on your needs
+			std::vector<double> pays(payHeaders.size(), 0);
 			std::vector<int> reelHeights(numReels);
 			for (int r = 0; r < numReels; ++r) {
 				reelHeights[r] = reelHeightPD[r].getRandomPrize();
 			}
 			screen.resize(reelHeights);
 
-			overReelSet = allReelSets["over"];
-			underReelSet = allReelSets["under"];
+			// NO LONGER NEEDED - over/under reels are part of the main reelset
+			// overReelSet = allReelSets["over"];
+			// underReelSet = allReelSets["under"];
 
-			//int reelID = 1;
 			int reelID = ReelsPD.getRandomPrize();
 			lastReelSetID = reelID;
 			switch (reelID) {
 			case 0:
-				activeReels = allReelSets["baseLow"];
+				//activeReels = allReelSets["baseLow"]; 
+				activeReels = allReelSets["noWin1"];
 				break;
 			case 1:
-				//activeReels = allReelSets["baseHigh"];
-				activeReels = allReelSets["baseTumble"];
+				activeReels = allReelSets["baseLow"];
 				break;
 			}
+
+			// This now spins main reels AND over/under reels if they exist
 			activeReels.spinReels();
-			overReelSet.spinReels();
-			underReelSet.spinReels();
 
 			// Determine boost for over/under reels
 			boostVecOver.clear();
@@ -138,23 +137,20 @@ public:
 				boostVecUnder.push_back(boostPDVec[b].getRandomPrize());
 			}
 
+			// Generate main screen
 			screen.generateScreen(activeReels);
-			screen.addSideSymbols(true, overReelSet, boostVecOver);
-			screen.addSideSymbols(false, underReelSet, boostVecUnder);
 
-			//vector<vector<string>> forceScreen = {
-			//	{"R1", "WL", "R1"},
-			//	{"R2", "WL", "R2"},
-			//	{"R2", "Money", "R2"},
-			//	{"R2", "R6", "R2"},
-			//	{"R3", "R2", "R1"}
-			//};
-			//screen.fillScreen(forceScreen);
+			// Add side symbols from the integrated reelset
+			if (activeReels.hasOverReel()) {
+				screen.addSideSymbols(true, activeReels, boostVecOver);
+			}
+			if (activeReels.hasUnderReel()) {
+				screen.addSideSymbols(false, activeReels, boostVecUnder);
+			}
 
 			baseVector = handleCascades(screen, activeReels, activeReels, false, true, globalMult);
-			//baseVector = handleCascades(screen, activeReels, activeReels, true, true);
-			// sum baseVector
-			basePay = baseVector[0] + baseVector[1]; // Initial win + tumble win
+			basePay = baseVector[0] + baseVector[1];
+
 			if (basePay)
 				stats.trackFeatureActivation("Base Win");
 
@@ -163,13 +159,12 @@ public:
 
 			int fgCount = screen.countSymbolOnScreen("F1", false);
 			if (fgCount >= 3) {
-				freeVector = playFreeGames(10); // Play 10 free games with no pot
-				stats.trackFeatureActivation("FS Trigger "+ to_string(fgCount));
+				//freeVector = playFreeGames(10);
+				stats.trackFeatureActivation("FS Trigger " + to_string(fgCount));
 				stats.trackFeatureActivation("Free Spins");
 			}
 
 			RandomLogGenerator::endRound();
-			// 
 			pays[TOTAL] = std::accumulate(pays.begin(), pays.end() - 2, 0.0);
 
 			if (pays[TOTAL])
@@ -177,9 +172,7 @@ public:
 
 			stats.completeWager(pays);
 		}
-
 	}
-
 
 	vector<double> playFreeGames(int numFreeGames) {
 		vector<double> pays(3, 0);
@@ -251,19 +244,19 @@ public:
 		return boostCount;
 	}
 
-	vector<double> handleCascades(Screen& screen, ReelSet& reelSet, ReelSet& offScreenReelSet, bool useDifferentReelSet, bool baseGame, int& globalMult) {
+	vector<double> handleCascades(Screen& screen, ReelSet& reelSet, ReelSet& offScreenReelSet,
+		bool useDifferentReelSet, bool baseGame, int& globalMult) {
 		bool hasNewWins;
 		double initialWin = 0, tumbleWin = 0, tempWin;
 		int tumbleCount = 0;
 
-		// If we're using a different reel set, spin it once before cascading
 		if (useDifferentReelSet) {
-			offScreenReelSet.spinReels(); //removed const to make work
+			offScreenReelSet.spinReels();
 		}
 
 		do {
 			hasNewWins = false;
-			screen.clearMarkedPositions(); // Clear previous positions
+			screen.clearMarkedPositions();
 			tempWin = 0;
 
 			if (tumbleCount == 0) {
@@ -280,28 +273,30 @@ public:
 				RandomLogGenerator::addWinAmount(tempWin);
 			}
 
-
 			if (!screen.getMarkedPositions().empty()) {
 				hasNewWins = true;
 				tumbleCount++;
 
-				screen.removeMarkedPositions();  // Remove the symbols at winning positions        
-				screen.cascadeSymbols(reelSet, useDifferentReelSet, offScreenReelSet);  // Cascade new symbols down
-				screen.cascadeSideRow(true, overReelSet, 50); // Cascade over row
-				screen.cascadeSideRow(false, underReelSet, 50); // Cascade under row
+				screen.removeMarkedPositions();
+				screen.cascadeSymbols(reelSet, useDifferentReelSet, offScreenReelSet);
 
+				// Updated cascade calls - use the integrated over/under reels
+				if (reelSet.hasOverReel()) {
+					screen.cascadeSideRowIntegrated(true, reelSet, 50);
+				}
+				if (reelSet.hasUnderReel()) {
+					screen.cascadeSideRowIntegrated(false, reelSet, 50);
+				}
 			}
 		} while (hasNewWins);
 
 		if (initialWin && baseGame) {
 			stats.recordTumbleFrequency(tumbleCount);
-
 		}
 		stats.recordFinalMult(globalMult);
 
 		return { initialWin, tumbleWin };
 	}
-
 	double calculateWaysWins(Screen& screen, bool baseGame, int currentMult = 1) {
 		double totalPay = 0;
 
