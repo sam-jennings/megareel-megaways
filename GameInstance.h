@@ -314,7 +314,9 @@ public:
 	double calculateWaysWins(Screen& screen, bool baseGame, int currentMult = 1) {
 		double totalPay = 0;
 
-		RandomLogGenerator::addScreen(screen.toJson(true, true));  // update when adding underrow
+		if (logMode != NO_LOGGING) {
+			RandomLogGenerator::addScreen(screen.toJson(true, true));
+		}  
 		// Clear previous marked positions
 		screen.clearMarkedPositions();
 

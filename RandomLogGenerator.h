@@ -186,15 +186,14 @@ void RandomLogGenerator::startRound() {
 
 
 void RandomLogGenerator::endRound() {
-    if (logMode == LOGGING) return;
+    if (logMode == NO_LOGGING) return;
     
     endSpin();  // Finalize the last spin
 
-    if (logMode == LOGGING) {
-        // Log the total round win to the random log (cap the win if maxRoundWin is hit)
-        double totalWin = maxWinTriggered ? maxRoundWin : currentRoundTotalWin;
-        randomLogFile << "#" << std::fixed << std::setprecision(2) << totalWin / 100 << std::endl;
-    }
+    // Log the total round win to the random log (cap the win if maxRoundWin is hit)
+    double totalWin = maxWinTriggered ? maxRoundWin : currentRoundTotalWin;
+    randomLogFile << "#" << std::fixed << std::setprecision(2) << totalWin / 100 << std::endl;
+    
 
     // Log the game details (screen state) to gameDetails.txt
     gameDetailsFile << "{" << std::endl;
@@ -221,9 +220,6 @@ void RandomLogGenerator::endRound() {
 
             gameDetailsFile << std::endl;
         }
-
-
- 
 
         // gameDetailsFile << "}" << std::endl;
         if (i < currentSpin - 1) {
