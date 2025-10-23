@@ -33,7 +33,7 @@ private:
 	std::unordered_map<std::string, long long> featureHits;
 	std::vector<std::vector<long long>> baseSymHits;
 	std::vector<std::vector<double>> baseSymPays;
-	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, multFreq;
+	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, multFreq, multFreqFree;
 	SymbolStructure& symbolStructure;
 	std::vector<double> standardDeviations;
 	int totalWins = 0;
@@ -84,9 +84,14 @@ public:
 		tumbleFreq[tumbles]++;
 	}
 
-	void recordFinalMult(int tumbles) {
+	void recordFinalMult(int mult) {
 		std::lock_guard<std::mutex> lock(statsMutex);
-		multFreq[tumbles]++;
+		multFreq[mult]++;
+	}
+
+	void recordFinalMultFree(int mult) {
+		std::lock_guard<std::mutex> lock(statsMutex);
+		multFreqFree[mult]++;
 	}
 
 	//record number of free spins
@@ -95,20 +100,33 @@ public:
 		freeSpinsFreq[freeSpins]++;
 	}
 
-	double calculateAverageTumbleFrequency() const {
-		long long totalTumbles = 0;
+	//double calculateAverageTumbleFrequency() const {
+	//	long long totalTumbles = 0;
+	//	long long totalOccurrences = 0;
+	//	for (const auto& pair : tumbleFreq) {
+	//		totalTumbles += pair.first * pair.second;
+	//		totalOccurrences += pair.second;
+	//	}
+	//	if (totalOccurrences == 0) {
+	//		return 0.0;
+	//	}
+	//	return static_cast<double>(totalTumbles) / totalOccurrences;
+	//}
+
+	double calculateAverageFrequency(std::unordered_map<int, long long> freqMap) const {
+		long long totalHits = 0;
 		long long totalOccurrences = 0;
-		for (const auto& pair : tumbleFreq) {
-			totalTumbles += pair.first * pair.second;
+		for (const auto& pair : freqMap) {
+			totalHits += pair.first * pair.second;
 			totalOccurrences += pair.second;
 		}
 		if (totalOccurrences == 0) {
 			return 0.0;
 		}
-		return static_cast<double>(totalTumbles) / totalOccurrences;
+		return static_cast<double>(totalHits) / totalOccurrences;
 	}
 
-	double calculateAverageFreeSpins() const {
+	/*double calculateAverageFreeSpins() const {
 		long long totalFreeSpins = 0;
 		long long totalOccurrences = 0;
 		for (const auto& pair : freeSpinsFreq) {
@@ -119,7 +137,7 @@ public:
 			return 0.0;
 		}
 		return static_cast<double>(totalFreeSpins) / totalOccurrences;
-	}
+	}*/
 
 	void completeWager(const std::vector<double>& pays) {
 		std::lock_guard<std::mutex> lock(statsMutex);
@@ -220,6 +238,9 @@ public:
 		for (const auto& pair : other.multFreq) {
 			multFreq[pair.first] += pair.second;
 		}
+		for (const auto& pair : other.multFreqFree) {
+			multFreqFree[pair.first] += pair.second;
+		}
 
 		for (const auto& pair : other.freeSpinsFreq) {
 			freeSpinsFreq[pair.first] += pair.second;
@@ -314,23 +335,31 @@ public:
 			file << '\n';
 		}
 		file << "----------------------------------------\n";
-		file << "Average Free Spins: " << '\t' << calculateAverageFreeSpins() << '\n';
+		file << "Average Free Spins: " << '\t' << calculateAverageFrequency(freeSpinsFreq) << '\n';
 		file << "----------------------------------------\n";
 	
+		file << "Average Tumbles: " << '\t' << calculateAverageFrequency(tumbleFreq) << '\n';
+		file << "----------------------------------------\n";
 		file << "Tumble Frequencies\n";
 		file << "Number Tumble\tFrequency\n";
 		for (const auto& pair : tumbleFreq) {
 			file << pair.first << '\t' << pair.second << '\n';
 		}
 		file << "----------------------------------------\n";
-		file << "Average Tumbles: " << '\t' << calculateAverageTumbleFrequency() << '\n';
-		file << "----------------------------------------\n";
 
-		file << "Final Multiplier Frequencies\n";
-		file << "Multiplier\tFrequency\n";
-		for (const auto& pair : multFreq) {
-			file << pair.first << '\t' << pair.second << '\n';
-		}
+		file << "Average Final Multiplier: " << '\t' << calculateAverageFrequency(multFreq) << '\n';
+		//file << "Final Multiplier Frequencies\n";
+		//file << "Multiplier\tFrequency\n";
+		//for (const auto& pair : multFreq) {
+		//	file << pair.first << '\t' << pair.second << '\n';
+		//}
+		file << "----------------------------------------\n";
+		file << "Average Final Multiplier Free Spins: " << '\t' << calculateAverageFrequency(multFreqFree) << '\n';
+		//file << "Final Multiplier Frequencies Free Spins\n";
+		//file << "Multiplier\tFrequency\n";
+		//for (const auto& pair : multFreqFree) {
+		//	file << pair.first << '\t' << pair.second << '\n';
+		//}
 		/*
 	file << "Scale Pair Frequencies\n";
 	outputScalePairFrequencies(file);*/
