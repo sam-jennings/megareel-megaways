@@ -3,12 +3,43 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <limits>
 
 #include <random>
 #include <numeric>
 #include "RandomLogGenerator.h" // Include if you use RandomLogGenerator in these functions
 
 extern int instructionIndex; // Same for instructionIndex if it's used globally
+
+// Fast xorshift64* RNG suitable for non-crypto uses; lightweight and very fast.
+struct XorShift64Star {
+    using result_type = uint64_t;
+    explicit XorShift64Star(uint64_t seed = 0) { if (seed == 0) seed = 0x9e3779b97f4a7c15ULL ^ 1; state = seed; }
+    result_type operator()() {
+        uint64_t x = state;
+        x ^= x >> 12;
+        x ^= x << 25;
+        x ^= x >> 27;
+        state = x;
+        return x * 2685821657736338717ULL;
+    }
+    static constexpr result_type min() { return 0ULL; }
+    static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
+private:
+    uint64_t state;
+};
+
+// Thread-local fast RNG accessor: seeds once per thread and reuses the engine for all calls.
+inline XorShift64Star& getThreadRng() {
+    static thread_local XorShift64Star gen([]() -> uint64_t {
+        std::random_device rd;
+        uint64_t a = static_cast<uint64_t>(rd());
+        uint64_t b = static_cast<uint64_t>(rd());
+        return (a << 32) | b;
+    }());
+    return gen;
+}
 
 // Define a method to generate random numbers within a specified range
 inline int getRand(const std::string& mask, int range) {
@@ -29,10 +60,10 @@ inline int getRand(const std::string& mask, int range) {
         index = currentInstruction.result;
     }
     else {
-        std::random_device rd;
-        std::mt19937 gen(rd());
+        // Use a thread-local fast RNG seeded once per thread and reuse it across calls.
+        XorShift64Star& gen = getThreadRng();
         std::uniform_int_distribution<> dis(0, range - 1);
-        index = dis(gen);
+        index = static_cast<int>(dis(gen));
         if (logMode == 1) {
             RandTriple randTriple = { mask, index, range };
             RandomLogGenerator::addRandom(randTriple);
