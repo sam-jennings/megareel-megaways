@@ -254,12 +254,12 @@ public:
 
         if (includeOver) {
             json overJson = json::array();
-            overJson.push_back(" ");
+            overJson.push_back("-");
             for (int i = 0; i < SIDE_LEN; ++i) {
                 const auto& c = overRow[i];
                 overJson.push_back(c.boosted ? (c.name + "*") : c.name);
             }
-            overJson.push_back(" ");
+            overJson.push_back("-");
             screenJson.push_back(overJson);
 		}
 
@@ -268,7 +268,7 @@ public:
             json rowJson = json::array();
             for (int j = 0; j < numReels; ++j) {
                 if (i >= heights[j]) {
-					rowJson.push_back(" "); // Might need to change spacing
+					rowJson.push_back("-"); // Might need to change spacing
 					//continue;
 				} else
                 rowJson.push_back(grid[j][i]);
@@ -277,12 +277,12 @@ public:
         }
         if (includeUnder) {
             json underJson = json::array();
-            underJson.push_back(" ");
+            underJson.push_back("-");
             for (int i = 0; i < SIDE_LEN; ++i) {
                 const auto& c = underRow[i];
                 underJson.push_back(c.boosted ? (c.name + "*") : c.name);
             }
-            underJson.push_back(" ");
+            underJson.push_back("-");
             screenJson.push_back(underJson);
         }
 

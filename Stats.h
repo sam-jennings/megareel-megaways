@@ -34,6 +34,7 @@ private:
 	std::vector<std::vector<long long>> baseSymHits;
 	std::vector<std::vector<double>> baseSymPays;
 	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, multFreq, multFreqFree;
+	std::unordered_map<int, std::unordered_map<int, long long>> multFreqFreeByInit;
 	SymbolStructure& symbolStructure;
 	std::vector<double> standardDeviations;
 	int totalWins = 0;
@@ -92,6 +93,11 @@ public:
 	void recordFinalMultFree(int mult) {
 		std::lock_guard<std::mutex> lock(statsMutex);
 		multFreqFree[mult]++;
+	}
+
+	void recordFinalMultFreeByInit(int initMult, int finalMult) {
+		std::lock_guard<std::mutex> lock(statsMutex);
+		multFreqFreeByInit[initMult][finalMult]++;
 	}
 
 	//record number of free spins
@@ -241,6 +247,12 @@ public:
 		for (const auto& pair : other.multFreqFree) {
 			multFreqFree[pair.first] += pair.second;
 		}
+		for (const auto& outerPair : other.multFreqFreeByInit) {
+			int initMult = outerPair.first;
+			for (const auto& innerPair : outerPair.second) {
+				multFreqFreeByInit[initMult][innerPair.first] += innerPair.second;
+			}
+		}
 
 		for (const auto& pair : other.freeSpinsFreq) {
 			freeSpinsFreq[pair.first] += pair.second;
@@ -348,18 +360,46 @@ public:
 		file << "----------------------------------------\n";
 
 		file << "Average Final Multiplier: " << '\t' << calculateAverageFrequency(multFreq) << '\n';
-		//file << "Final Multiplier Frequencies\n";
-		//file << "Multiplier\tFrequency\n";
-		//for (const auto& pair : multFreq) {
-		//	file << pair.first << '\t' << pair.second << '\n';
-		//}
+		file << "Final Multiplier Frequencies\n";
+		file << "Multiplier\tFrequency\n";
+		for (const auto& pair : multFreq) {
+			file << pair.first << '\t' << pair.second << '\n';
+		}
 		file << "----------------------------------------\n";
 		file << "Average Final Multiplier Free Spins: " << '\t' << calculateAverageFrequency(multFreqFree) << '\n';
-		//file << "Final Multiplier Frequencies Free Spins\n";
-		//file << "Multiplier\tFrequency\n";
-		//for (const auto& pair : multFreqFree) {
-		//	file << pair.first << '\t' << pair.second << '\n';
-		//}
+		file << "Final Multiplier Frequencies Free Spins\n";
+		file << "Multiplier\tFrequency\n";
+		for (const auto& pair : multFreqFree) {
+			file << pair.first << '\t' << pair.second << '\n';
+		}
+		file << "----------------------------------------\n";
+		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n";
+
+		std::vector<int> initKeys;
+		initKeys.reserve(multFreqFreeByInit.size());
+		for (const auto& kv : multFreqFreeByInit) initKeys.push_back(kv.first);
+		std::sort(initKeys.begin(), initKeys.end());
+
+		for (int init : initKeys) {
+			const auto& freq = multFreqFreeByInit.at(init);
+
+			// Average for this init
+			double avg = calculateAverageFrequency(const_cast<std::unordered_map<int, long long>&>(freq));
+
+			// Dump a table per init
+			file << "Init Multiplier: " << init << "\n";
+			file << "Average Final Multiplier (init " << init << "):\t" << avg << "\n";
+			file << "Final Mult\tFrequency\n";
+
+			std::vector<std::pair<int, long long>> rows(freq.begin(), freq.end());
+			std::sort(rows.begin(), rows.end(),
+				[](auto& a, auto& b) { return a.first < b.first; });
+
+			for (const auto& p : rows) {
+				file << p.first << '\t' << p.second << '\n';
+			}
+			file << "----------------------------------------\n";
+		}
 		/*
 	file << "Scale Pair Frequencies\n";
 	outputScalePairFrequencies(file);*/

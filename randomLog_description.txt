@@ -1,24 +1,27 @@
 R-WTS - Base reelset pick
 FR-WTS - Free reelset pick
+
 BH - Spin Base High reelset
+BH_OR - Spin Base High over-reel
+BH_UR - Spin Base High under-reel
 BL - Spin Base Low reelset
-TH - Spin Tumble High reelset
-TL - Spin Tumble Low reelset
-FH - Spin Free High reelset
+BL_OR - Spin Base Low over-reel
+BL_UR - Spin Base Low under-reel
+BT - Spin Base T reelset
+BT_OR - Spin Base T over-reel
+BT_UR - Spin Base T under-reel
+NW1 - Spin Base N reelset
+NW1_OR - Spin Base N over-reel
+NW1_UR - Spin Base N under-reel
 FL - Spin Free Low reelset
-TF - Spin Tumble Free reelset
-PR - Spin Premium reelset
-WR - Spin Wild Wins reelset
-ER - Spin Expanded Wins reelset
-WA - Equalizer selection (Base)
-WAF - Equalizer selection (Free)
-FG - Free Games selection (Base)
-FGF - Free Games selection (Free)
-WW - Wild Win multiplier (Base)
-WWF - Wild Win multiplier (Free)
-EW - Expanded Win multiplier (Base)
-EWF - Expanded Win multiplier (Free)
-DP - Direct Prize (Base)
-JP - Jackpot Prize (Base)
-DPF - Direct Prize (Free)
-JPF - Jackpot Prize (Free)
+FL_OR - Spin Free Low over-reel
+FL_UR - Spin Free Low under-reel
+FH - Spin Free High reelset
+FH_OR - Spin Free High over-reel
+FH_UR - Spin Free High under-reel
+
+RH - Base reel heights
+RHF - Free reel heights
+
+BS - Starting symbol boosted
+BT - Tumbled symbol boosted

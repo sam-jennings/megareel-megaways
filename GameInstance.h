@@ -170,6 +170,8 @@ public:
 				stats.trackFeatureActivation("FS Trigger " + to_string(fgCount));
 				stats.trackFeatureActivation("Free Spins");
 				pays[FREE_TOTAL] += freeVector[0];
+			} else if (fgCount == 2) {
+				stats.trackFeatureActivation("FS Tease");
 			}
 
 			RandomLogGenerator::endRound();
@@ -234,6 +236,7 @@ public:
 		//stats.recordTumbleFrequency(tumbleCount);
 		stats.recordFreeSpins(numFreeGames);
 		stats.recordFinalMultFree(multiplier);
+		stats.recordFinalMultFreeByInit(initMult, multiplier);
 
 		return pays;
 	}
