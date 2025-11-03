@@ -21,7 +21,7 @@ private:
 	std::vector<std::string> payHeaders;
 
 	std::vector<std::vector<int>> boostWeights;
-	std::vector<PrizeDistribution<int>> boostPDVec;
+	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
 	std::vector<bool> boostVecOver, boostVecUnder;
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
@@ -53,7 +53,9 @@ private:
 			numReels = config->parseVar<int>("reels");
 			reelHeightPD = config->parsePDVec<int>("reelHeights");
 			reelHeightFreePD = config->parsePDVec<int>("reelHeightsFree");
-			boostWeights = config->parseArray<int>("boostWeights");
+			boostOverPDVec = config->parsePDVec<int>("boostWeightsOver");
+			boostUnderPDVec = config->parsePDVec<int>("boostWeightsUnder");
+			//boostWeights = config->parseArray<int>("boostWeights");
 			payHeaders = config->getRTPHeaders();
 			symbolStructure = config->parseSymbolStructure();
 			allReelSets = config->parseAllReelSets();
@@ -94,11 +96,11 @@ public:
 		ReelSet activeReels;
 		int globalMult;
 
-		boostPDVec.resize(boostWeights.size());
+	/*	boostPDVec.resize(boostWeights.size());
 		for (int i = 0; i < boostWeights.size(); ++i) {
 			boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1),
 				std::vector<int>{0, 1}, boostWeights[i]);
-		}
+		}*/
 
 		for (long long i = 0; i < numSpins; ++i) {
 			basePay = 0;
@@ -138,9 +140,9 @@ public:
 			// Determine boost for over/under reels
 			boostVecOver.clear();
 			boostVecUnder.clear();
-			for (int b = 0; b < boostWeights.size(); ++b) {
-				boostVecOver.push_back(boostPDVec[b].getRandomPrize());
-				boostVecUnder.push_back(boostPDVec[b].getRandomPrize());
+			for (int b = 0; b < boostOverPDVec.size(); ++b) {
+				boostVecOver.push_back(boostOverPDVec[b].getRandomPrize());
+				boostVecUnder.push_back(boostUnderPDVec[b].getRandomPrize());
 			}
 
 			// Generate main screen
@@ -194,8 +196,8 @@ public:
 		ReelSet freeReelSet;
 
 		// All over/under symbols are boosted
-		boostVecOver = std::vector<bool>(boostWeights.size(), true);
-		boostVecUnder = std::vector<bool>(boostWeights.size(), true);
+		boostVecOver = std::vector<bool>(boostOverPDVec.size(), true);
+		boostVecUnder = std::vector<bool>(boostOverPDVec.size(), true);
 
 		Screen screen(numReels, numRows);
 		screen.clearScreen();

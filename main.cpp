@@ -64,7 +64,7 @@ int main() {
     std::vector<std::string> gameInfo = config->getGameInfo();
     const double costPerSpin = config->parseVar<double>("cost");
 
-    long long numberOfSpins = 1000000LL; //logging: 100000 
+    long long numberOfSpins = 100000LL; //logging: 100000 
 
 
 

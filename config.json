@@ -356,10 +356,48 @@
       "weights": [3, 10, 30, 40, 17]
     }
   },
-  "boostWeights": [
-    [80, 20],
-    [75, 25],
-    [70, 30],
-    [65, 35]
-  ]
+  "boostWeightsOver": {
+    "boostO1": {
+      "mask": "BoostS_O1",
+      "prizes": [0, 1],
+      "weights": [80, 20]
+    },
+    "boostO2": {
+      "mask": "BoostS_O2",
+      "prizes": [0, 1],
+      "weights": [75, 25]
+    },
+    "boostO3": {
+      "mask": "BoostS_O3",
+      "prizes": [0, 1],
+      "weights": [70, 30]
+    },
+    "boostO4": {
+      "mask": "BoostS_O4",
+      "prizes": [0, 1],
+      "weights": [65, 35]
+    }
+  },
+    "boostWeightsUnder": {
+    "boostU1": {
+      "mask": "BoostS_U1",
+      "prizes": [0, 1],
+      "weights": [80, 20]
+    },
+    "boostU2": {
+      "mask": "BoostS_U2",
+      "prizes": [0, 1],
+      "weights": [75, 25]
+    },
+    "boostU3": {
+      "mask": "BoostS_U3",
+      "prizes": [0, 1],
+      "weights": [70, 30]
+    },
+    "boostU4": {
+      "mask": "BoostS_U4",
+      "prizes": [0, 1],
+      "weights": [65, 35]
+    }
+  }
 }

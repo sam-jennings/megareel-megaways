@@ -394,7 +394,9 @@ public:
                     row[p] = row[p + 1];
 
                 // bring the next symbol in on the RIGHT
-                bool boosted = getRand("TB", 100) < boostProb;
+                //bool boosted = getRand("TB_" + (over) ? "O" : "U", 100) < boostProb;
+                bool boosted = (boostProb == 100) ||
+                               ( getRand(std::string("BoostT_") + (over ? "O" : "U"), 100) < boostProb );
                 row[SIDE_LEN - 1] = SideCell{ strip[next], boosted };
 
                 // the window advanced by one:

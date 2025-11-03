@@ -23,5 +23,7 @@ FH_UR - Spin Free High under-reel
 RH - Base reel heights
 RHF - Free reel heights
 
-BS - Starting symbol boosted
-BT - Tumbled symbol boosted
+BoostS_O - Starting symbol boosted Over-reel
+BoostS_U - Starting symbol boosted Under-reel
+BoostT_O - Tumbled symbol boosted Over-reel
+BoostT_U - Tumbled symbol boosted Under-reel
