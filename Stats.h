@@ -33,7 +33,7 @@ private:
 	std::unordered_map<std::string, long long> featureHits;
 	std::vector<std::vector<long long>> baseSymHits;
 	std::vector<std::vector<double>> baseSymPays;
-	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, multFreq, multFreqFree;
+	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, tumbleFreqFree, multFreq, multFreqFree;
 	std::unordered_map<int, std::unordered_map<int, long long>> multFreqFreeByInit;
 	SymbolStructure& symbolStructure;
 	std::vector<double> standardDeviations;
@@ -80,9 +80,13 @@ public:
 		scatterHits[prize]++;
 	}
 
-	void recordTumbleFrequency(int tumbles) {
+	void recordTumbleFrequency(int tumbles, bool base) {
 		std::lock_guard<std::mutex> lock(statsMutex);
-		tumbleFreq[tumbles]++;
+		if (base) {
+			tumbleFreq[tumbles]++;
+		} else {
+			tumbleFreqFree[tumbles]++;
+		}
 	}
 
 	void recordFinalMult(int mult) {
@@ -240,6 +244,9 @@ public:
 		for (const auto& pair : other.tumbleFreq) {
 			tumbleFreq[pair.first] += pair.second;
 		}
+		for (const auto& pair : other.tumbleFreqFree) {
+			tumbleFreqFree[pair.first] += pair.second;
+		}
 
 		for (const auto& pair : other.multFreq) {
 			multFreq[pair.first] += pair.second;
@@ -350,9 +357,11 @@ public:
 		file << "Average Free Spins: " << '\t' << calculateAverageFrequency(freeSpinsFreq) << '\n';
 		file << "----------------------------------------\n";
 	
-		file << "Average Tumbles: " << '\t' << calculateAverageFrequency(tumbleFreq) << '\n';
+		file << "Average Tumbles Base: " << '\t' << calculateAverageFrequency(tumbleFreq) << '\n';
 		file << "----------------------------------------\n";
-		file << "Tumble Frequencies\n";
+		file << "Average Tumbles Free: " << '\t' << calculateAverageFrequency(tumbleFreqFree) << '\n';
+		file << "----------------------------------------\n";
+		file << "Tumble Frequencies Base\n";
 		file << "Number Tumble\tFrequency\n";
 		for (const auto& pair : tumbleFreq) {
 			file << pair.first << '\t' << pair.second << '\n';

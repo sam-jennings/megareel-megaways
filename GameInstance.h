@@ -306,12 +306,14 @@ public:
 			}
 		} while (hasNewWins);
 
-		if (baseGame) {
+		
 			if (initialWin) {
-				stats.recordTumbleFrequency(tumbleCount);
+				stats.recordTumbleFrequency(tumbleCount, baseGame);
 			}
-			stats.recordFinalMult(globalMult);
-		}
+			if (baseGame)
+				stats.recordFinalMult(globalMult);
+		
+
 
 		return { initialWin, tumbleWin };
 	}
