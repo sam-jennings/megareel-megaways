@@ -31,8 +31,8 @@ private:
 	std::vector<double> payVector, lastPay;
 	std::vector<std::unordered_map<double, long long>> payFrequencies;
 	std::unordered_map<std::string, long long> featureHits;
-	std::vector<std::vector<long long>> baseSymHits;
-	std::vector<std::vector<double>> baseSymPays;
+	std::vector<std::vector<long long>> baseSymHits, freeSymHits;
+	std::vector<std::vector<double>> baseSymPays, freeSymPays;
 	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, tumbleFreqFree, multFreq, multFreqFree;
 	std::unordered_map<int, std::unordered_map<int, long long>> multFreqFreeByInit;
 	SymbolStructure& symbolStructure;
@@ -58,7 +58,9 @@ public:
 		int numSymbols = symbolStructure.getNumSymbols();
 		int maxLength = symbolStructure.getWinLength();
 		baseSymHits.resize(numSymbols, std::vector<long long>(maxLength, 0));
+		freeSymHits.resize(numSymbols, std::vector<long long>(maxLength, 0));
 		baseSymPays.resize(numSymbols, std::vector<double>(maxLength, 0.0));
+		freeSymPays.resize(numSymbols, std::vector<double>(maxLength, 0.0));
 	}
 	void setNumIterations(long long iterations) {
 		std::lock_guard<std::mutex> lock(statsMutex);
@@ -72,6 +74,9 @@ public:
 		if (base) {
 			baseSymHits[symbolIndex][lengthIndex] += ways;
 			baseSymPays[symbolIndex][lengthIndex] += pay;
+		} else {
+			freeSymHits[symbolIndex][lengthIndex] += ways;
+			freeSymPays[symbolIndex][lengthIndex] += pay;
 		}
 	}
 
@@ -234,6 +239,8 @@ public:
 			for (size_t j = 0; j < baseSymHits[i].size(); ++j) {
 				baseSymHits[i][j] += other.baseSymHits[i][j];
 				baseSymPays[i][j] += other.baseSymPays[i][j];
+				freeSymHits[i][j] += other.freeSymHits[i][j];
+				freeSymPays[i][j] += other.freeSymPays[i][j];
 			}
 		}
 
@@ -340,15 +347,15 @@ public:
 
 		file << "----------------------------------------\n";
 
-		file << "Base Pays\n";
+		file << "Free Hits\n";
 		file << "Symbol";
-		for (size_t i = 0; i < baseSymPays[0].size(); ++i) {
+		for (size_t i = 0; i < freeSymHits[0].size(); ++i) {
 			file << '\t' << i + 1;
 		}
 		file << '\n';
-		for (size_t i = 0; i < baseSymPays.size(); ++i) {
+		for (size_t i = 0; i < freeSymHits.size(); ++i) {
 			file << symbolStructure.getSymbols()[i];
-			for (const auto& hits : baseSymPays[i]) {
+			for (const auto& hits : freeSymHits[i]) {
 				file << '\t' << hits;
 			}
 			file << '\n';

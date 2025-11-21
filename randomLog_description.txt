@@ -19,9 +19,15 @@ FL_UR - Spin Free Low under-reel
 FH - Spin Free High reelset
 FH_OR - Spin Free High over-reel
 FH_UR - Spin Free High under-reel
+FTL - Spin Free Low reelset
+FTL_OR - Spin Free Low over-reel
+FTL_UR - Spin Free Low under-reel
+FTH - Spin Free High reelset
+FTH_OR - Spin Free High over-reel
+FTH_UR - Spin Free High under-reel
 
-RH - Base reel heights
-RHF - Free reel heights
+RH - Base and Free reel heights
+RHF - Free reel heights (not used)
 
 BoostS_O - Starting symbol boosted Over-reel
 BoostS_U - Starting symbol boosted Under-reel

@@ -27,7 +27,7 @@ private:
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
 	std::unordered_map<std::string, ReelSet> allReelSets;
 	std::vector<int> reelWeights, reelWeightsFree;
-	PrizeDistribution<int> ReelsPD;
+	PrizeDistribution<int> ReelsPD, ReelsFreePD;
 	vector<PrizeDistribution<double>> moneyPrizes;
 	// Game variables
 	Screen screen;
@@ -64,6 +64,7 @@ private:
 			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
 			reelWeightsFree = config->parseVec<int32_t>("reelWeightsFree", rtpKey);
 			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3}, reelWeights);
+			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3}, reelWeightsFree);
 			cost = config->parseVar<int>("cost");
 			symbols = symbolStructure.getSymbols();
 			paytable = symbolStructure.getPaytable();
@@ -209,16 +210,30 @@ public:
 
 			std::vector<int> reelHeights(numReels);
 			for (int r = 0; r < numReels; ++r) {
-				reelHeights[r] = reelHeightFreePD[r].getRandomPrize();
+				//reelHeights[r] = reelHeightFreePD[r].getRandomPrize();
+				reelHeights[r] = reelHeightPD[r].getRandomPrize();
 			}
 			screen.resize(reelHeights);
 
-			if (getRand("FR-WTS", reelWeightsFree[0] + reelWeightsFree[1]) < reelWeightsFree[0]) {
+			int reelID = ReelsFreePD.getRandomPrize();
+
+			switch (reelID) {
+			case 0:
+				//activeReels = allReelSets["baseLow"]; 
 				freeReelSet = allReelSets["freeLow"];
-			}
-			else {
+				break;
+			case 1:
 				freeReelSet = allReelSets["freeHigh"];
+				break;
+			case 2:
+				//freeReelSet = allReelSets["baseTumble"];
+				freeReelSet = allReelSets["freeTumbleLow"];
+				break;
+			case 3:
+				freeReelSet = allReelSets["freeTumbleHigh"];
+				break;
 			}
+
 
 			freeReelSet.spinReels();
 
