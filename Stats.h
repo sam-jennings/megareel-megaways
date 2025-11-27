@@ -41,7 +41,22 @@ private:
 	double totalWinnings = 0.0;
 	std::pair<int, double> moneyEntry; // <count, amount>
 
-	std::unordered_map<std::pair<int, int>, long long, std::hash<std::pair<int, int>>> scaleFrequency;
+	// Add inside class Stats (private section)
+	template<typename Map>
+	static void writeSortedFrequency(std::ofstream& file, const std::string& keyHeader, const std::string& valueHeader, const Map& freq) {
+		using Key = typename Map::key_type;
+		using Val = typename Map::mapped_type;
+		std::vector<std::pair<Key, Val>> items;
+		items.reserve(freq.size());
+		for (const auto& kv : freq) items.emplace_back(kv.first, kv.second);
+		std::sort(items.begin(), items.end(), [](const std::pair<Key, Val>& a, const std::pair<Key, Val>& b) {
+			return a.first < b.first;
+			});
+		file << keyHeader << '\t' << valueHeader << '\n';
+		for (const auto& p : items) {
+			file << p.first << '\t' << p.second << '\n';
+		}
+	}
 
 public:
 	explicit Stats(SymbolStructure& symbolStructure, const std::vector<std::string>& rtpHeaders, double costPerSpin)
@@ -108,6 +123,24 @@ public:
 		std::lock_guard<std::mutex> lock(statsMutex);
 		multFreqFreeByInit[initMult][finalMult]++;
 	}
+
+	// calculate multiplier hit rate (when mult > 1)
+	double calculateMultiplierHitRate() const {
+		long long multHits = 0;
+		long long totalOccurrences = 0;
+		for (const auto& pair : multFreq) {
+			if (pair.first > 1) {
+				multHits += pair.second;
+			}
+			totalOccurrences += pair.second;
+		}
+		if (totalOccurrences == 0) {
+			return 0.0;
+		}
+		return static_cast<double>(totalOccurrences) / multHits;
+	}
+
+
 
 	//record number of free spins
 	void recordFreeSpins(int freeSpins) {
@@ -272,9 +305,6 @@ public:
 			freeSpinsFreq[pair.first] += pair.second;
 		}
 
-		for (const auto& pair : other.scaleFrequency) {
-			scaleFrequency[pair.first] += pair.second;
-		}
 		moneyEntry.first += other.moneyEntry.first;
 		moneyEntry.second += other.moneyEntry.second;
 
@@ -369,25 +399,18 @@ public:
 		file << "Average Tumbles Free: " << '\t' << calculateAverageFrequency(tumbleFreqFree) << '\n';
 		file << "----------------------------------------\n";
 		file << "Tumble Frequencies Base\n";
-		file << "Number Tumble\tFrequency\n";
-		for (const auto& pair : tumbleFreq) {
-			file << pair.first << '\t' << pair.second << '\n';
-		}
-		file << "----------------------------------------\n";
+		writeSortedFrequency(file, "Number Tumble", "Frequency", tumbleFreq);
 
+		file << "----------------------------------------\n";
+		file << "Multiplier Hit Rate: " << '\t' << calculateMultiplierHitRate() << '\n';
 		file << "Average Final Multiplier: " << '\t' << calculateAverageFrequency(multFreq) << '\n';
 		file << "Final Multiplier Frequencies\n";
-		file << "Multiplier\tFrequency\n";
-		for (const auto& pair : multFreq) {
-			file << pair.first << '\t' << pair.second << '\n';
-		}
+		writeSortedFrequency(file, "Multiplier", "Frequency", multFreq);
+
 		file << "----------------------------------------\n";
 		file << "Average Final Multiplier Free Spins: " << '\t' << calculateAverageFrequency(multFreqFree) << '\n';
 		file << "Final Multiplier Frequencies Free Spins\n";
-		file << "Multiplier\tFrequency\n";
-		for (const auto& pair : multFreqFree) {
-			file << pair.first << '\t' << pair.second << '\n';
-		}
+		writeSortedFrequency(file, "Multiplier", "Frequency", multFreqFree);
 		file << "----------------------------------------\n";
 		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n";
 
@@ -405,7 +428,8 @@ public:
 			// Dump a table per init
 			file << "Init Multiplier: " << init << "\n";
 			file << "Average Final Multiplier (init " << init << "):\t" << avg << "\n";
-			file << "Final Mult\tFrequency\n";
+			writeSortedFrequency(file, "Final Mult", "Frequency", freq);
+			/*file << "Final Mult\tFrequency\n";
 
 			std::vector<std::pair<int, long long>> rows(freq.begin(), freq.end());
 			std::sort(rows.begin(), rows.end(),
@@ -413,7 +437,7 @@ public:
 
 			for (const auto& p : rows) {
 				file << p.first << '\t' << p.second << '\n';
-			}
+			}*/
 			file << "----------------------------------------\n";
 		}
 		/*
@@ -454,9 +478,10 @@ public:
 	double getFreeSpinPayout() const { //change depending on payVector
 		// Calculate free spin pays
 		double freeSpinPayout = 0.0;
-		for (size_t i = 2; i < 7; ++i) { // Change to the range of indices that represent free spins
-			freeSpinPayout += payVector[i];
-		}
+		//for (size_t i = 2; i < 7; ++i) { // Change to the range of indices that represent free spins
+		//	freeSpinPayout += payVector[i];
+		//}
+		freeSpinPayout = payVector[3]; // Assuming index 3 corresponds to FREE_TOTAL
 		return freeSpinPayout;
 	}
 

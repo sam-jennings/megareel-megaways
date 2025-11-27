@@ -37,8 +37,8 @@ enum SimulationMode {
     CSV_MODE
 };
 
-LogMode logMode = LOGGING; // NO_LOGGING, LOGGING, REPLAY
-SimulationMode simulationMode = RANDOM_MODE; // RANDOM_MODE;
+LogMode logMode = NO_LOGGING; // NO_LOGGING, LOGGING, REPLAY
+SimulationMode simulationMode = CSV_MODE; // RANDOM_MODE;
 
 
 
@@ -64,7 +64,7 @@ int main() {
     std::vector<std::string> gameInfo = config->getGameInfo();
     const double costPerSpin = config->parseVar<double>("cost");
 
-    long long numberOfSpins = 100000LL; //logging: 100000 
+    long long numberOfSpins = 1000000000LL; //logging: 100000 
 
 
 
@@ -157,7 +157,7 @@ int main() {
         std::cout << "Enter the game version : ";
         std::getline(std::cin, userGameVersion);
 
-        const long long defaultSpins = 1000000LL;
+        const long long defaultSpins = 1000000LL; //1000000LL
         std::string csvFileName = outputFileBase + "_simulation.csv";
 
         std::ostringstream csvData;
@@ -165,14 +165,14 @@ int main() {
         csvData << "GAME VERSION: " << userGameVersion << "\n\n";
         csvData << "RTP SIMULATION RESULTS\n\n";
         csvData << "PLAYER 1 RTP SIMULATION RESULTS\n";
-        csvData << "SPINID,TOTAL STAKE,BALANCE,BASE GAME,FREE SPINS,TOTALWIN,TOTAL WINS,REELSET_ID\n";
+        csvData << "SPINID,TOTAL STAKE,BALANCE,BASE GAME,FREE SPINS,TOTALWIN,TOTAL WINS,REELSET_ID,CASCADE_COUNT\n";
 
         long long totalWager = 0;
         double balance = 500.0, totalWins = 0.0; // Starting balance
 
         for (long long i = 0; i < defaultSpins; ++i) {
             double spinWin = 0.0, freeSpinWin = 0.0, baseGameWin = 0.0, modCost = (costPerSpin / 100);
-            int reelsetId = -1; // You'll need a real getter here
+            int cascadeCount, reelsetId = -1; // You'll need a real getter here
 
 
             Stats stats(symbolStructure, rtpHeaders, costPerSpin);
@@ -186,13 +186,14 @@ int main() {
             totalWins += spinWin;
 
             // Assuming GameInstance has a method to get reelset ID
-            reelsetId = gameInstance.getLastReelSetID(); // <-- implement this if not present
+            reelsetId = gameInstance.getLastReelSetID();
+			cascadeCount = gameInstance.getBaseTumbleCount(); 
 
             totalWager += modCost;
             balance += spinWin - modCost;
 
             csvData << i << ',' << (i + 1) * modCost << ',' << std::fixed << std::setprecision(2) << balance << ','
-                << baseGameWin << ',' << freeSpinWin << ',' << spinWin << ',' << totalWins << ',' << reelsetId << '\n';
+                << baseGameWin << ',' << freeSpinWin << ',' << spinWin << ',' << totalWins << ',' << reelsetId << ',' << cascadeCount << '\n';
         }
 
         std::ofstream csvFile(csvFileName);

@@ -33,8 +33,9 @@ private:
 	Screen screen;
 	int tumbleCount;
 	int spinCount;
-
+	int baseTumbleCount;
 	int lastReelSetID = -1;
+
 
 
 
@@ -63,7 +64,7 @@ private:
 			 tumbleReelSet = config->parseReelSet("tumbleHigh");*/
 			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
 			reelWeightsFree = config->parseVec<int32_t>("reelWeightsFree", rtpKey);
-			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3}, reelWeights);
+			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3, 4}, reelWeights);
 			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3}, reelWeightsFree);
 			cost = config->parseVar<int>("cost");
 			symbols = symbolStructure.getSymbols();
@@ -97,15 +98,16 @@ public:
 		ReelSet activeReels;
 		int globalMult;
 
-	/*	boostPDVec.resize(boostWeights.size());
-		for (int i = 0; i < boostWeights.size(); ++i) {
-			boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1),
-				std::vector<int>{0, 1}, boostWeights[i]);
-		}*/
+		/*	boostPDVec.resize(boostWeights.size());
+			for (int i = 0; i < boostWeights.size(); ++i) {
+				boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1),
+					std::vector<int>{0, 1}, boostWeights[i]);
+			}*/
 
 		for (long long i = 0; i < numSpins; ++i) {
 			basePay = 0;
 			globalMult = 1;
+			baseTumbleCount = 0;
 
 			RandomLogGenerator::startRound();
 			std::vector<double> pays(payHeaders.size(), 0);
@@ -128,9 +130,12 @@ public:
 				activeReels = allReelSets["baseHigh"];
 				break;
 			case 2:
-				activeReels = allReelSets["baseTumble"];
+				activeReels = allReelSets["freeTumbleLow"];
 				break;
 			case 3:
+				activeReels = allReelSets["freeTumbleHigh"];
+				break;
+			case 4:
 				activeReels = allReelSets["noWin1"];
 				break;
 			}
@@ -173,7 +178,8 @@ public:
 				stats.trackFeatureActivation("FS Trigger " + to_string(fgCount));
 				stats.trackFeatureActivation("Free Spins");
 				pays[FREE_TOTAL] += freeVector[0];
-			} else if (fgCount == 2) {
+			}
+			else if (fgCount == 2) {
 				stats.trackFeatureActivation("FS Tease");
 			}
 
@@ -321,13 +327,15 @@ public:
 			}
 		} while (hasNewWins);
 
-		
-			if (initialWin) {
-				stats.recordTumbleFrequency(tumbleCount, baseGame);
-			}
-			if (baseGame)
-				stats.recordFinalMult(globalMult);
-		
+
+		if (initialWin) {
+			stats.recordTumbleFrequency(tumbleCount, baseGame);
+		}
+		if (baseGame) {
+			stats.recordFinalMult(globalMult);
+			baseTumbleCount = tumbleCount;
+		}
+
 
 
 		return { initialWin, tumbleWin };
@@ -338,7 +346,7 @@ public:
 
 		if (logMode != NO_LOGGING) {
 			RandomLogGenerator::addScreen(screen.toJson(true, true));
-		}  
+		}
 		// Clear previous marked positions
 		screen.clearMarkedPositions();
 
@@ -400,6 +408,9 @@ public:
 
 	int getLastReelSetID() const {
 		return lastReelSetID;
+	}
+	int getBaseTumbleCount() const {
+		return baseTumbleCount;
 	}
 };
 
