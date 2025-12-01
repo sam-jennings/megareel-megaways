@@ -169,53 +169,133 @@ public:
         throw std::invalid_argument("ReelSet not found: " + reelSetName);
     }
 
+    ReelSet parseReelSet(const json& item, std::string maskName = "") {
+        std::vector<Reel> reels;
+        auto& reelsConfig = item["reels"];
+
+        // Parse main reels
+        for (auto& reelConfig : reelsConfig) {
+            std::vector<std::string> symbols =
+                reelConfig["symbols"].get<std::vector<std::string>>();
+            std::vector<int> weights;
+            if (reelConfig.contains("weights")) {
+                weights = reelConfig["weights"].get<std::vector<int>>();
+            }
+            reels.emplace_back(symbols, weights);
+        }
+
+        std::string mask =
+            maskName.empty() ? static_cast<std::string>(item["mask"]) : maskName;
+
+        // Optional over/under reels
+        Reel* overReel = nullptr;
+        Reel* underReel = nullptr;
+        std::string overMask;
+        std::string underMask;
+
+        if (item.contains("overReel")) {
+            auto& overConfig = item["overReel"];
+            std::vector<std::string> overSymbols =
+                overConfig["symbols"].get<std::vector<std::string>>();
+            std::vector<int> overWeights;
+            if (overConfig.contains("weights")) {
+                overWeights = overConfig["weights"].get<std::vector<int>>();
+            }
+            overReel = new Reel(overSymbols, overWeights);
+            overMask = overConfig.contains("mask")
+                ? static_cast<std::string>(overConfig["mask"])
+                : mask + "_OVER";
+        }
+
+        if (item.contains("underReel")) {
+            auto& underConfig = item["underReel"];
+            std::vector<std::string> underSymbols =
+                underConfig["symbols"].get<std::vector<std::string>>();
+            std::vector<int> underWeights;
+            if (underConfig.contains("weights")) {
+                underWeights = underConfig["weights"].get<std::vector<int>>();
+            }
+            underReel = new Reel(underSymbols, underWeights);
+            underMask = underConfig.contains("mask")
+                ? static_cast<std::string>(underConfig["mask"])
+                : mask + "_UNDER";
+        }
+
+        ReelSet result(reels, mask, overReel, overMask, underReel, underMask);
+
+        delete overReel;
+        delete underReel;
+
+        return result;
+    }
+
+
+    //std::unordered_map<std::string, ReelSet> parseAllReelSets() {
+    //    std::unordered_map<std::string, ReelSet> reelSetsMap;
+    //    for (auto& item : config_json["reel_sets"]) {
+    //        std::string name = item["name"];
+    //        ReelSet reelSet = parseReelSet(name);
+    //        reelSetsMap[name] = reelSet;
+    //    }
+    //    return reelSetsMap;
+    //}
+
     std::unordered_map<std::string, ReelSet> parseAllReelSets() {
         std::unordered_map<std::string, ReelSet> reelSetsMap;
-        for (auto& item : config_json["reel_sets"]) {
-            std::string name = item["name"];
-            ReelSet reelSet = parseReelSet(name);
-            reelSetsMap[name] = reelSet;
+        auto& reelSetConfig = config_json["reel_sets"];
+
+        reelSetsMap.reserve(reelSetConfig.size());  // optional but cheap win
+
+        for (auto& item : reelSetConfig) {
+            std::string name = item["name"].get<std::string>();
+            ReelSet reelSet = parseReelSet(item);   // <- no second loop
+            reelSetsMap.emplace(std::move(name), std::move(reelSet));
         }
         return reelSetsMap;
     }
 
     // Get PrizeDistribution object from config
     template <typename PrizeType>
-    PrizeDistribution<PrizeType> parsePrizeDistribution(const std::string& prizeDistName, std::string subLevel = "") {
-        // Get the reference to the config JSON node, starting from the root
-        json prizeDistConfig = this->config_json;
+    PrizeDistribution<PrizeType> parsePrizeDistribution(const std::string& prizeDistName,
+        std::string subLevel = "") {
+        // Start from the existing DOM without copying it
+        const json* node = &config_json;
 
-        // If subLevel is provided, navigate to the specific sublevel
+        // If subLevel is provided ("foo/bar/baz"), walk down by reference
         if (!subLevel.empty()) {
             std::istringstream subLevelStream(subLevel);
             std::string level;
-            while (getline(subLevelStream, level, '/')) {
-                prizeDistConfig = prizeDistConfig[level];
+            while (std::getline(subLevelStream, level, '/')) {
+                node = &(*node)[level];   // no copies, just follow references
             }
         }
-        prizeDistConfig = prizeDistConfig[prizeDistName];
 
-        std::string mask = prizeDistConfig["mask"];
-        std::vector<PrizeType> prizes = prizeDistConfig["prizes"].get<std::vector<PrizeType>>();
-        // Check if weights exist, default to 1s if not
+        const json& prizeDistConfig = (*node)[prizeDistName];
+
+        std::string mask = prizeDistConfig["mask"].get<std::string>();
+        std::vector<PrizeType> prizes =
+            prizeDistConfig["prizes"].get<std::vector<PrizeType>>();
+
         std::vector<int> weights;
         if (prizeDistConfig.contains("weights")) {
             weights = prizeDistConfig["weights"].get<std::vector<int>>();
         }
         else {
-            weights = std::vector<int>(prizes.size(), 1); // Default weights to 1 for each prize
+            weights.assign(prizes.size(), 1);
         }
+
         return PrizeDistribution<PrizeType>(mask, prizes, weights);
     }
 
     // Get vector of PrizeDistribution objects from config
     template <typename PrizeType>
     std::vector<PrizeDistribution<PrizeType>> parsePDVec(const std::string& prizeDistName) {
-        std::vector<PrizeDistribution<PrizeType>> prizeDists;
         json& prizeDistConfig = this->config_json[prizeDistName];
+        std::vector<PrizeDistribution<PrizeType>> prizeDists;
+        prizeDists.reserve(prizeDistConfig.size());  // *** key change: avoid repeated reallocations ***
         for (auto& item : prizeDistConfig.items()) {
-            std::string key = item.key();
-            prizeDists.push_back(parsePrizeDistribution<PrizeType>(key, prizeDistName));
+            // avoid an extra std::string copy for the key
+            prizeDists.emplace_back(parsePrizeDistribution<PrizeType>(item.key(), prizeDistName));
         }
         return prizeDists;
     }
