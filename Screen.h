@@ -13,7 +13,7 @@ using json = nlohmann::json;
 
 struct SideCell {
     std::string name;
-    bool boosted = false;
+    int boostLevel = 0;  // 0=none, 1=regular boost (+1), 2=superboost (+10)
 };
 
 class Screen {
@@ -22,11 +22,11 @@ private:
     int maxHeight;
     std::vector<int> heights;
     vector<vector<std::string>> grid;
-	// For over/under reels
+    // For over/under reels
     static constexpr int SIDE_LEN = 4;          // middle-four reels
     //std::array<std::string, SIDE_LEN> overRow{}; // index 0 ⟶ reel 1, 3 ⟶ reel 4
     //std::array<std::string, SIDE_LEN> underRow{}; 
-    std::array<SideCell, SIDE_LEN> overRow{};  
+    std::array<SideCell, SIDE_LEN> overRow{};
     std::array<SideCell, SIDE_LEN> underRow{};
 
 public:
@@ -39,8 +39,8 @@ public:
     Screen(int _numReels, int _numRows) : numReels(_numReels), maxHeight(_numRows) {
         heights.reserve(_numReels);
         for (int i = 0; i < _numReels; ++i) {
-			heights.push_back(_numRows); // Initialize all reels with the same height
-		}
+            heights.push_back(_numRows); // Initialize all reels with the same height
+        }
         // Initialize the grid with placeholders
         resize(heights);
     }
@@ -48,7 +48,7 @@ public:
     // Constructor for screen with variable heights
     Screen(const std::vector<int>& _heights) : numReels(_heights.size()), heights(_heights) {
         resize(heights);
-	}
+    }
 
 
     // For over/under reels
@@ -57,24 +57,24 @@ public:
     inline bool match(const std::string& symbol, const std::string& target, bool includeWild = true) const {
         if (includeWild && (symbol == target || symbol == "WL")) return true;
         return symbol == target;
-	}
+    }
 
-    void setSideSymbol(bool over, int idx, const std::string& s, bool boosted = false) {
+    void setSideSymbol(bool over, int idx, const std::string& s, int boostLevel = 0) {
         auto& cell = (over ? overRow : underRow)[idx];
         cell.name = s;
-        cell.boosted = boosted;
+        cell.boostLevel = boostLevel;
     }
 
     std::string getSideSymbol(bool over, int idx) const {
         return (over ? overRow : underRow)[idx].name;
     }
 
-    // Optional explicit boost accessors if you want them:
-    bool isSideBoosted(bool over, int idx) const {
-        return (over ? overRow : underRow)[idx].boosted;
-    }
-    void setSideBoosted(bool over, int idx, bool b) {
-        (over ? overRow : underRow)[idx].boosted = b;
+    int getSideBoostLevel(bool over, int idx) const {
+        return (over ? overRow : underRow)[idx].boostLevel;
+	}
+ 
+    void setSideBoosted(bool over, int idx, int level) {
+        (over ? overRow : underRow)[idx].boostLevel = level;
     }
 
 
@@ -86,25 +86,25 @@ public:
     }
 */
 
-    // Resize the screen based on fixed number of rows
+// Resize the screen based on fixed number of rows
     void resize(int _numReels, int _numRows) {
-		numReels = _numReels;
-		maxHeight = _numRows;
-		heights.resize(numReels, _numRows); // Initialize all reels with the same height
-		grid.resize(numReels, vector<string>(_numRows, "")); // Initialize the grid with empty strings
-	}
+        numReels = _numReels;
+        maxHeight = _numRows;
+        heights.resize(numReels, _numRows); // Initialize all reels with the same height
+        grid.resize(numReels, vector<string>(_numRows, "")); // Initialize the grid with empty strings
+    }
 
     // Resize the screen with variable heights
     void resize(std::vector<int> newH) {
-		heights = newH; // Update the heights vector with the new heights
-		numReels = heights.size(); // Update the number of reels based on the new heights
+        heights = newH; // Update the heights vector with the new heights
+        numReels = heights.size(); // Update the number of reels based on the new heights
         grid.resize(numReels);
         maxHeight = 0;
         // Resize each inner vector to have _numRows elements
         for (int i = 0; i < numReels; ++i) {
             if (heights[i] > maxHeight) {
-				maxHeight = heights[i]; // Update maxHeight if the current reel's height is greater
-			}
+                maxHeight = heights[i]; // Update maxHeight if the current reel's height is greater
+            }
             grid[i].resize(heights[i], ""); // Ensure all new elements are initialized to empty strings
         }
     }
@@ -119,9 +119,9 @@ public:
         for (int i = 0; i < maxHeight; ++i) {
             for (int j = 0; j < numReels; ++j) {
                 if (i >= heights[j]) {
-					cout << setw(5) << "     "; // Print empty space for reels that are shorter than the current row
-					continue;
-				}
+                    cout << setw(5) << "     "; // Print empty space for reels that are shorter than the current row
+                    continue;
+                }
                 if (displayMarkedPositions) {
                     bool marked = false;
                     for (const auto& pos : markedPositions) {
@@ -131,8 +131,8 @@ public:
                         }
                     }
                     if (marked) {
-                       cout << setw(5) << "[" << grid[j][i] << "] ";
-//cout << setw(5) << ("[" + grid[j][i] + "]");
+                        cout << setw(5) << "[" << grid[j][i] << "] ";
+                        //cout << setw(5) << ("[" + grid[j][i] + "]");
                     }
                     else {
                         cout << setw(5) << grid[j][i] << "  ";
@@ -218,7 +218,7 @@ public:
         return count;
     }
 
-   
+
 
     // Function to count the number of times a symbol appears on the screen
     int countSymbolOnScreen(const string& symbol, bool includeWild = true) const {
@@ -248,7 +248,7 @@ public:
         return make_pair(length, ways);
     }
 
-   
+
     json toJson(bool includeOver = false, bool includeUnder = false) const {
         json screenJson;
 
@@ -257,21 +257,22 @@ public:
             overJson.push_back("-");
             for (int i = 0; i < SIDE_LEN; ++i) {
                 const auto& c = overRow[i];
-                overJson.push_back(c.boosted ? (c.name + "*") : c.name);
+                overJson.push_back(c.boostLevel == 2 ? (c.name + "**") : (c.boostLevel == 1 ? (c.name + "*") : c.name));
             }
             overJson.push_back("-");
             screenJson.push_back(overJson);
-		}
+        }
 
         // Convert the grid into a JSON array of arrays
         for (int i = 0; i < maxHeight; ++i) {
             json rowJson = json::array();
             for (int j = 0; j < numReels; ++j) {
                 if (i >= heights[j]) {
-					rowJson.push_back("-"); // Might need to change spacing
-					//continue;
-				} else
-                rowJson.push_back(grid[j][i]);
+                    rowJson.push_back("-"); // Might need to change spacing
+                    //continue;
+                }
+                else
+                    rowJson.push_back(grid[j][i]);
             }
             screenJson.push_back(rowJson);
         }
@@ -280,7 +281,7 @@ public:
             underJson.push_back("-");
             for (int i = 0; i < SIDE_LEN; ++i) {
                 const auto& c = underRow[i];
-                underJson.push_back(c.boosted ? (c.name + "*") : c.name);
+                underJson.push_back(c.boostLevel == 2 ? (c.name + "**") : (c.boostLevel == 1 ? (c.name + "*") : c.name));
             }
             underJson.push_back("-");
             screenJson.push_back(underJson);
@@ -289,7 +290,7 @@ public:
         return screenJson;
     }
 
-    void cascadeSideRow(bool over, ReelSet& rs, int boostProb)
+    void cascadeSideRow(bool over, ReelSet& rs, int boostProb, int superBoostProb = 0)
     {
         auto& row = over ? overRow : underRow;
         const auto& strip = rs.reels[0].symbols;
@@ -306,10 +307,16 @@ public:
                 for (int p = pos; p < SIDE_LEN - 1; ++p)
                     row[p] = row[p + 1];
 
-                // bring the next symbol in on the RIGHT
-                //row[SIDE_LEN - 1] = strip[next];
-				bool boosted = getRand("TB", 100) < boostProb;
-                row[SIDE_LEN - 1] = SideCell{ strip[next], boosted }; 
+                // Determine boost level for new symbol
+                int boostLevel = 0;
+                int roll = getRand("TB", 100);
+                if (roll < superBoostProb) {
+                    boostLevel = 2;  // Superboost
+                }
+                else if (roll < boostProb) {
+                    boostLevel = 1;  // Regular boost
+                }
+                row[SIDE_LEN - 1] = SideCell{ strip[next], boostLevel };
 
                 // the window advanced by one:
                 left = (left + 1) % N;
@@ -337,12 +344,12 @@ public:
                     }
                     // Fill the topmost position with a new symbol
                     grid[reel][0] = activeReelSet.reels[reel].symbols[activeReelSet.currentIndices[reel]];
-                    
+
                 }
             }
         }
     }
-   
+
 
     // New method to add side symbols from an integrated ReelSet
     void addSideSymbolsFromIntegratedReelSet(const ReelSet& rs,
@@ -370,7 +377,7 @@ public:
     }
 
     // Modified cascade method for integrated over/under reels
-    void cascadeSideRowIntegrated(bool over, ReelSet& rs, int boostProb) {
+    void cascadeSideRowIntegrated(bool over, ReelSet& rs, int boostProb, int superBoostProb = 0) {
         // Check if this reelset has the requested side reel
         if (over && !rs.hasOverReel()) return;
         if (!over && !rs.hasUnderReel()) return;
@@ -393,11 +400,24 @@ public:
                 for (int p = pos; p < SIDE_LEN - 1; ++p)
                     row[p] = row[p + 1];
 
-                // bring the next symbol in on the RIGHT
-                //bool boosted = getRand("TB_" + (over) ? "O" : "U", 100) < boostProb;
-                bool boosted = (boostProb == 100) ||
-                               ( getRand(std::string("BoostT_") + (over ? "O" : "U"), 100) < boostProb );
-                row[SIDE_LEN - 1] = SideCell{ strip[next], boosted };
+                // Determine boost level for new symbol
+                int boostLevel = 0;
+                if (boostProb == 100 && superBoostProb == 100) {
+                    boostLevel = 2;  // Always superboost
+                }
+                else if (boostProb == 100) {
+                    boostLevel = 1;  // Always regular boost
+                }
+                else {
+                    int roll = getRand(std::string("BoostT_") + (over ? "O" : "U"), 100);
+                    if (roll < superBoostProb) {
+                        boostLevel = 2;  // Superboost
+                    }
+                    else if (roll < boostProb) {
+                        boostLevel = 1;  // Regular boost
+                    }
+                }
+                row[SIDE_LEN - 1] = SideCell{ strip[next], boostLevel };
 
                 // the window advanced by one:
                 left = (left + 1) % N;
@@ -409,7 +429,7 @@ public:
 
     // Alternative: Keep your existing addSideSymbols method for backward compatibility
     // and add an overload for integrated reelsets:
-    void addSideSymbols(bool over, const ReelSet& rs, const std::vector<bool>& boostVec = { 0,0,0,0 }) {
+    void addSideSymbols(bool over, const ReelSet& rs, const std::vector<int>& boostVec = { 0,0,0,0 }) {
         // Check if this is an integrated reelset with over/under reels
         if (over && rs.hasOverReel()) {
             const auto& strip = rs.getOverReel()->symbols;
@@ -431,20 +451,20 @@ public:
     }
 
     void markPosition(int reel, int row) {
-		markedPositions.push_back(make_pair(reel, row));
-	}
+        markedPositions.push_back(make_pair(reel, row));
+    }
 
     void clearMarkedPositions() {
         markedPositions.clear();
     }
-    
+
     // Get marked positions
     const std::vector<std::pair<int, int>>& getMarkedPositions() const {
-		return markedPositions;
-	}
+        return markedPositions;
+    }
 
     // Mark given symbol up to length on the screen. includeWild as parameter
-    void markSymbol(const string& symbol, int length, bool includeWild = true) {        
+    void markSymbol(const string& symbol, int length, bool includeWild = true) {
         for (int i = 0; i < length; ++i) {
             for (int j = 0; j < heights[i]; ++j) {
                 if (grid[i][j] == symbol || (includeWild && grid[i][j] == "WL")) {
@@ -466,11 +486,14 @@ public:
             int row = position.second;
             if (row >= 0 && row < heights[reel]) {
                 grid[reel][row] = "";  // Clear the winning symbol in the grid
-            } else if (middleReel(reel)) {
+            }
+            else if (middleReel(reel)) {
                 if (row == -1) {
-                    overRow[reel - 1].name = ""; overRow[reel - 1].boosted = false; }
-                else if (row == -2) { 
-                    underRow[reel - 1].name = ""; underRow[reel - 1].boosted = false; }
+                    overRow[reel - 1].name = ""; overRow[reel - 1].boostLevel = 0;
+                }
+                else if (row == -2) {
+                    underRow[reel - 1].name = ""; underRow[reel - 1].boostLevel = 0;
+                }
             }
         }
     }
@@ -478,10 +501,9 @@ public:
     // Function to fill all marked symbols with a specified symbol
     void fillMarkedSymbols(const string& symbol) {
         for (const auto& position : markedPositions) {
-			int reel = position.first;
-			int row = position.second;
-			grid[reel][row] = symbol;
-		}
-	}
+            int reel = position.first;
+            int row = position.second;
+            grid[reel][row] = symbol;
+        }
+    }
 };
-

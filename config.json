@@ -435,45 +435,45 @@
   "boostWeightsOver": {
     "boostO1": {
       "mask": "BoostS_O1",
-      "prizes": [1, 0],
-      "weights": [10, 90]
+      "prizes": [0, 1, 2],
+      "weights": [90, 9, 1]
     },
     "boostO2": {
       "mask": "BoostS_O2",
-      "prizes": [1, 0],
-      "weights": [10, 90]
+      "prizes": [0, 1, 2],
+      "weights": [90, 9, 1]
     },
     "boostO3": {
       "mask": "BoostS_O3",
-      "prizes": [1, 0],
-      "weights": [25, 75]
+      "prizes": [0, 1, 2],
+      "weights": [75, 23, 2]
     },
     "boostO4": {
       "mask": "BoostS_O4",
-      "prizes": [1, 0],
-      "weights": [25, 75]
+      "prizes": [0, 1, 2],
+      "weights": [75, 23, 2]
     }
   },
   "boostWeightsUnder": {
     "boostU1": {
       "mask": "BoostS_U1",
-      "prizes": [1, 0],
-      "weights": [10, 90]
+      "prizes": [0, 1, 2],
+      "weights": [90, 9, 1]
     },
     "boostU2": {
       "mask": "BoostS_U2",
-      "prizes": [1, 0],
-      "weights": [10, 90]
+      "prizes": [0, 1, 2],
+      "weights": [90, 9, 1]
     },
     "boostU3": {
       "mask": "BoostS_U3",
-      "prizes": [1, 0],
-      "weights": [25, 75]
+      "prizes": [0, 1, 2],
+      "weights": [75, 23, 2]
     },
     "boostU4": {
       "mask": "BoostS_U4",
-      "prizes": [1, 0],
-      "weights": [25, 75]
+      "prizes": [0, 1, 2],
+      "weights": [75, 23, 2]
     }
   }
 }

@@ -22,7 +22,7 @@ private:
 
 	std::vector<std::vector<int>> boostWeights;
 	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
-	std::vector<bool> boostVecOver, boostVecUnder;
+	std::vector<int> boostVecOver, boostVecUnder;
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
 	std::unordered_map<std::string, ReelSet> allReelSets;
@@ -143,7 +143,7 @@ public:
 			// This now spins main reels AND over/under reels if they exist
 			activeReels.spinReels();
 
-			// Determine boost for over/under reels
+			// Determine boost for over/under reels (prizes: 0=none, 1=regular, 2=superboost)
 			boostVecOver.clear();
 			boostVecUnder.clear();
 			for (int b = 0; b < boostOverPDVec.size(); ++b) {
@@ -174,7 +174,7 @@ public:
 
 			int fgCount = screen.countSymbolOnScreen("F1", false);
 			if (fgCount >= 3) {
-				freeVector = playFreeGames(5 * (fgCount - 3) + 10, (fgCount - 3) + 2);
+				freeVector = playFreeGames(5 * (fgCount - 3) + 10, 1);
 				stats.trackFeatureActivation("FS Trigger " + to_string(fgCount));
 				stats.trackFeatureActivation("Free Spins");
 				pays[FREE_TOTAL] += freeVector[0];
@@ -203,8 +203,8 @@ public:
 		ReelSet freeReelSet;
 
 		// All over/under symbols are boosted
-		boostVecOver = std::vector<bool>(boostOverPDVec.size(), true);
-		boostVecUnder = std::vector<bool>(boostOverPDVec.size(), true);
+		boostVecOver = std::vector<int>(boostOverPDVec.size(), 1);
+		boostVecUnder = std::vector<int>(boostUnderPDVec.size(), 1);
 
 		Screen screen(numReels, numRows);
 		screen.clearScreen();
@@ -265,19 +265,25 @@ public:
 	}
 
 	int boostsInWin(const Screen& screen) {
-		int boostCount = 0;
+		int multIncrease = 0;
 		const auto& marked = screen.getMarkedPositions();
 		for (const auto& pos : marked) {
 			int reel = pos.first;
 			int row = pos.second;
 			// over side hit
-			if (row == -1 && screen.isSideBoosted(true, reel - 1))
-				boostCount++;
+			if (row == -1) {
+				int boostLevel = screen.getSideBoostLevel(true, reel - 1);
+				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
+				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+			}
 			// under side hit
-			if (row == -2 && screen.isSideBoosted(false, reel - 1))
-				boostCount++;
+			if (row == -2) {
+				int boostLevel = screen.getSideBoostLevel(false, reel - 1);
+				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
+				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+			}
 		}
-		return boostCount;
+		return multIncrease;
 	}
 
 	vector<double> handleCascades(Screen& screen, ReelSet& reelSet, ReelSet& offScreenReelSet,
