@@ -35,6 +35,14 @@ private:
 	std::vector<std::vector<double>> baseSymPays, freeSymPays;
 	std::unordered_map<int, long long> scatterHits, freeSpinsFreq, tumbleFreq, tumbleFreqFree, multFreq, multFreqFree;
 	std::unordered_map<int, std::unordered_map<int, long long>> multFreqFreeByInit;
+
+	// Boost tracking for free games
+	std::unordered_map<int, long long> boostFreqFree; // Boost level (0, 1, 2) -> frequency
+	long long standardBoostsFree = 0; // Count of standard boosts (+1) in free games
+	long long superboostsFree = 0; // Count of superboosts (+10) in free games
+	long long totalMultFromStandardBoostsFree = 0; // Total multiplier contribution from standard boosts
+	long long totalMultFromSuperboostsFree = 0; // Total multiplier contribution from superboosts
+
 	SymbolStructure& symbolStructure;
 	std::vector<double> standardDeviations;
 	int totalWins = 0;
@@ -122,6 +130,20 @@ public:
 	void recordFinalMultFreeByInit(int initMult, int finalMult) {
 		std::lock_guard<std::mutex> lock(statsMutex);
 		multFreqFreeByInit[initMult][finalMult]++;
+	}
+
+	// Record boost activation in free games
+	void recordBoostActivationFree(int boostLevel) {
+		std::lock_guard<std::mutex> lock(statsMutex);
+		boostFreqFree[boostLevel]++;
+
+		if (boostLevel == 1) {
+			standardBoostsFree++;
+			totalMultFromStandardBoostsFree += 1;
+		} else if (boostLevel == 2) {
+			superboostsFree++;
+			totalMultFromSuperboostsFree += 10;
+		}
 	}
 
 	// calculate multiplier hit rate (when mult > 1)
@@ -305,6 +327,15 @@ public:
 			freeSpinsFreq[pair.first] += pair.second;
 		}
 
+		// Aggregate boost tracking for free games
+		for (const auto& pair : other.boostFreqFree) {
+			boostFreqFree[pair.first] += pair.second;
+		}
+		standardBoostsFree += other.standardBoostsFree;
+		superboostsFree += other.superboostsFree;
+		totalMultFromStandardBoostsFree += other.totalMultFromStandardBoostsFree;
+		totalMultFromSuperboostsFree += other.totalMultFromSuperboostsFree;
+
 		moneyEntry.first += other.moneyEntry.first;
 		moneyEntry.second += other.moneyEntry.second;
 
@@ -411,6 +442,26 @@ public:
 		file << "Average Final Multiplier Free Spins: " << '\t' << calculateAverageFrequency(multFreqFree) << '\n';
 		file << "Final Multiplier Frequencies Free Spins\n";
 		writeSortedFrequency(file, "Multiplier", "Frequency", multFreqFree);
+		file << "----------------------------------------\n";
+
+		// Boost tracking for free games
+		file << "Boost Statistics (Free Games)\n";
+		file << "Standard Boosts (+1):\t" << standardBoostsFree
+			 << "\t(Total Mult: " << totalMultFromStandardBoostsFree << ")\n";
+		file << "Superboosts (+10):\t" << superboostsFree
+			 << "\t(Total Mult: " << totalMultFromSuperboostsFree << ")\n";
+
+		long long totalBoostsFree = standardBoostsFree + superboostsFree;
+		if (totalBoostsFree > 0) {
+			double superboostPercentage = (static_cast<double>(superboostsFree) / totalBoostsFree) * 100.0;
+			file << "Superboost %:\t" << std::setprecision(4) << superboostPercentage << "%\n";
+
+			double avgMultPerBoost = static_cast<double>(totalMultFromStandardBoostsFree + totalMultFromSuperboostsFree) / totalBoostsFree;
+			file << "Avg Mult per Boost:\t" << std::setprecision(4) << avgMultPerBoost << "\n";
+		}
+
+		file << "\nBoost Level Frequencies (Free Games)\n";
+		writeSortedFrequency(file, "Boost Level", "Frequency", boostFreqFree);
 		file << "----------------------------------------\n";
 		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n";
 

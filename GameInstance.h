@@ -264,7 +264,7 @@ public:
 		return pays;
 	}
 
-	int boostsInWin(const Screen& screen) {
+	int boostsInWin(const Screen& screen, bool baseGame) {
 		int multIncrease = 0;
 		const auto& marked = screen.getMarkedPositions();
 		for (const auto& pos : marked) {
@@ -275,12 +275,22 @@ public:
 				int boostLevel = screen.getSideBoostLevel(true, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+
+				// Track boost activations in free games
+				if (!baseGame && boostLevel > 0) {
+					stats.recordBoostActivationFree(boostLevel);
+				}
 			}
 			// under side hit
 			if (row == -2) {
 				int boostLevel = screen.getSideBoostLevel(false, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+
+				// Track boost activations in free games
+				if (!baseGame && boostLevel > 0) {
+					stats.recordBoostActivationFree(boostLevel);
+				}
 			}
 		}
 		return multIncrease;
@@ -303,13 +313,13 @@ public:
 
 			if (tumbleCount == 0) {
 				initialWin = calculateWaysWins(screen, baseGame);
-				globalMult += boostsInWin(screen);
+				globalMult += boostsInWin(screen, baseGame);
 				initialWin *= globalMult;
 				RandomLogGenerator::addWinAmount(initialWin);
 			}
 			else {
 				tempWin = calculateWaysWins(screen, baseGame);
-				globalMult += boostsInWin(screen);
+				globalMult += boostsInWin(screen, baseGame);
 				tempWin *= globalMult;
 				tumbleWin += tempWin;
 				RandomLogGenerator::addWinAmount(tempWin);
