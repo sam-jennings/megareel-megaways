@@ -475,5 +475,49 @@
       "prizes": [0, 1, 2],
       "weights": [75, 23, 2]
     }
+  },
+  "boostWeightsOverFree": {
+    "boostO1": {
+      "mask": "BoostS_O1_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostO2": {
+      "mask": "BoostS_O2_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostO3": {
+      "mask": "BoostS_O3_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostO4": {
+      "mask": "BoostS_O4_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    }
+  },
+  "boostWeightsUnderFree": {
+    "boostU1": {
+      "mask": "BoostS_U1_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostU2": {
+      "mask": "BoostS_U2_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostU3": {
+      "mask": "BoostS_U3_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    },
+    "boostU4": {
+      "mask": "BoostS_U4_Free",
+      "prizes": [1, 2],
+      "weights": [95, 5]
+    }
   }
 }

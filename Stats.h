@@ -43,6 +43,12 @@ private:
 	long long totalMultFromStandardBoostsFree = 0; // Total multiplier contribution from standard boosts
 	long long totalMultFromSuperboostsFree = 0; // Total multiplier contribution from superboosts
 
+	// Win tracking with superboosts
+	long long winsWithSuperboostBase = 0; // Number of base game wins with at least one superboost
+	long long winsWithSuperboostFree = 0; // Number of free game wins with at least one superboost
+	long long totalWinsBase = 0; // Total base game wins (for percentage calculation)
+	long long totalWinsFree = 0; // Total free game wins (for percentage calculation)
+
 	SymbolStructure& symbolStructure;
 	std::vector<double> standardDeviations;
 	int totalWins = 0;
@@ -143,6 +149,22 @@ public:
 		} else if (boostLevel == 2) {
 			superboostsFree++;
 			totalMultFromSuperboostsFree += 10;
+		}
+	}
+
+	// Record when a win has a superboost applied
+	void recordWinWithSuperboost(bool baseGame, bool hasSuperboost) {
+		std::lock_guard<std::mutex> lock(statsMutex);
+		if (baseGame) {
+			totalWinsBase++;
+			if (hasSuperboost) {
+				winsWithSuperboostBase++;
+			}
+		} else {
+			totalWinsFree++;
+			if (hasSuperboost) {
+				winsWithSuperboostFree++;
+			}
 		}
 	}
 
@@ -336,6 +358,12 @@ public:
 		totalMultFromStandardBoostsFree += other.totalMultFromStandardBoostsFree;
 		totalMultFromSuperboostsFree += other.totalMultFromSuperboostsFree;
 
+		// Aggregate win tracking with superboosts
+		winsWithSuperboostBase += other.winsWithSuperboostBase;
+		winsWithSuperboostFree += other.winsWithSuperboostFree;
+		totalWinsBase += other.totalWinsBase;
+		totalWinsFree += other.totalWinsFree;
+
 		moneyEntry.first += other.moneyEntry.first;
 		moneyEntry.second += other.moneyEntry.second;
 
@@ -462,6 +490,27 @@ public:
 
 		file << "\nBoost Level Frequencies (Free Games)\n";
 		writeSortedFrequency(file, "Boost Level", "Frequency", boostFreqFree);
+		file << "----------------------------------------\n";
+
+		// Win statistics with superboosts
+		file << "Wins with Superboosts\n";
+		file << "Base Game Wins:\t" << totalWinsBase << "\n";
+		file << "Base Game Wins with Superboost:\t" << winsWithSuperboostBase;
+		if (totalWinsBase > 0) {
+			double basePercentage = (static_cast<double>(winsWithSuperboostBase) / totalWinsBase) * 100.0;
+			file << "\t(" << std::setprecision(4) << basePercentage << "%)\n";
+		} else {
+			file << "\t(0%)\n";
+		}
+
+		file << "Free Game Wins:\t" << totalWinsFree << "\n";
+		file << "Free Game Wins with Superboost:\t" << winsWithSuperboostFree;
+		if (totalWinsFree > 0) {
+			double freePercentage = (static_cast<double>(winsWithSuperboostFree) / totalWinsFree) * 100.0;
+			file << "\t(" << std::setprecision(4) << freePercentage << "%)\n";
+		} else {
+			file << "\t(0%)\n";
+		}
 		file << "----------------------------------------\n";
 		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n";
 

@@ -22,6 +22,7 @@ private:
 
 	std::vector<std::vector<int>> boostWeights;
 	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
+	std::vector<PrizeDistribution<int>> boostOverPDVecFree, boostUnderPDVecFree;
 	std::vector<int> boostVecOver, boostVecUnder;
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
@@ -56,6 +57,8 @@ private:
 			reelHeightFreePD = config->parsePDVec<int>("reelHeightsFree");
 			boostOverPDVec = config->parsePDVec<int>("boostWeightsOver");
 			boostUnderPDVec = config->parsePDVec<int>("boostWeightsUnder");
+			boostOverPDVecFree = config->parsePDVec<int>("boostWeightsOverFree");
+			boostUnderPDVecFree = config->parsePDVec<int>("boostWeightsUnderFree");
 			//boostWeights = config->parseArray<int>("boostWeights");
 			payHeaders = config->getRTPHeaders();
 			symbolStructure = config->parseSymbolStructure();
@@ -202,9 +205,13 @@ public:
 
 		ReelSet freeReelSet;
 
-		// All over/under symbols are boosted
-		boostVecOver = std::vector<int>(boostOverPDVec.size(), 1);
-		boostVecUnder = std::vector<int>(boostUnderPDVec.size(), 1);
+		// All over/under symbols are boosted - use free game boost distributions
+		boostVecOver.clear();
+		boostVecUnder.clear();
+		for (int b = 0; b < boostOverPDVecFree.size(); ++b) {
+			boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());
+			boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
+		}
 
 		Screen screen(numReels, numRows);
 		screen.clearScreen();
@@ -264,8 +271,9 @@ public:
 		return pays;
 	}
 
-	int boostsInWin(const Screen& screen, bool baseGame) {
+	std::pair<int, bool> boostsInWin(const Screen& screen, bool baseGame) {
 		int multIncrease = 0;
+		bool hasSuperboost = false;
 		const auto& marked = screen.getMarkedPositions();
 		for (const auto& pos : marked) {
 			int reel = pos.first;
@@ -274,7 +282,10 @@ public:
 			if (row == -1) {
 				int boostLevel = screen.getSideBoostLevel(true, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
-				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+				else if (boostLevel == 2) {
+					multIncrease += 10; // Superboost: +10
+					hasSuperboost = true;
+				}
 
 				// Track boost activations in free games
 				if (!baseGame && boostLevel > 0) {
@@ -285,7 +296,10 @@ public:
 			if (row == -2) {
 				int boostLevel = screen.getSideBoostLevel(false, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
-				else if (boostLevel == 2) multIncrease += 10; // Superboost: +10
+				else if (boostLevel == 2) {
+					multIncrease += 10; // Superboost: +10
+					hasSuperboost = true;
+				}
 
 				// Track boost activations in free games
 				if (!baseGame && boostLevel > 0) {
@@ -293,7 +307,7 @@ public:
 				}
 			}
 		}
-		return multIncrease;
+		return {multIncrease, hasSuperboost};
 	}
 
 	vector<double> handleCascades(Screen& screen, ReelSet& reelSet, ReelSet& offScreenReelSet,
@@ -301,6 +315,7 @@ public:
 		bool hasNewWins;
 		double initialWin = 0, tumbleWin = 0, tempWin;
 		int tumbleCount = 0;
+		bool hasSuperboostInWin = false;
 
 		if (useDifferentReelSet) {
 			offScreenReelSet.spinReels();
@@ -313,13 +328,17 @@ public:
 
 			if (tumbleCount == 0) {
 				initialWin = calculateWaysWins(screen, baseGame);
-				globalMult += boostsInWin(screen, baseGame);
+				auto [multIncrease, hasSuperboost] = boostsInWin(screen, baseGame);
+				globalMult += multIncrease;
+				if (hasSuperboost) hasSuperboostInWin = true;
 				initialWin *= globalMult;
 				RandomLogGenerator::addWinAmount(initialWin);
 			}
 			else {
 				tempWin = calculateWaysWins(screen, baseGame);
-				globalMult += boostsInWin(screen, baseGame);
+				auto [multIncrease, hasSuperboost] = boostsInWin(screen, baseGame);
+				globalMult += multIncrease;
+				if (hasSuperboost) hasSuperboostInWin = true;
 				tempWin *= globalMult;
 				tumbleWin += tempWin;
 				RandomLogGenerator::addWinAmount(tempWin);
@@ -346,6 +365,8 @@ public:
 
 		if (initialWin) {
 			stats.recordTumbleFrequency(tumbleCount, baseGame);
+			// Record if this win had a superboost
+			stats.recordWinWithSuperboost(baseGame, hasSuperboostInWin);
 		}
 		if (baseGame) {
 			stats.recordFinalMult(globalMult);
