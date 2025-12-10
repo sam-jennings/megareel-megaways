@@ -133,10 +133,10 @@ public:
 				activeReels = allReelSets["baseHigh"];
 				break;
 			case 2:
-				activeReels = allReelSets["freeTumbleLow"];
+				activeReels = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				activeReels = allReelSets["freeTumbleHigh"];
+				activeReels = allReelSets["tumbleHigh"];
 				break;
 			case 4:
 				activeReels = allReelSets["noWin1"];
@@ -205,13 +205,7 @@ public:
 
 		ReelSet freeReelSet;
 
-		// All over/under symbols are boosted - use free game boost distributions
-		boostVecOver.clear();
-		boostVecUnder.clear();
-		for (int b = 0; b < boostOverPDVecFree.size(); ++b) {
-			boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());
-			boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
-		}
+	
 
 		Screen screen(numReels, numRows);
 		screen.clearScreen();
@@ -240,15 +234,23 @@ public:
 				break;
 			case 2:
 				//freeReelSet = allReelSets["baseTumble"];
-				freeReelSet = allReelSets["freeTumbleLow"];
+				freeReelSet = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				freeReelSet = allReelSets["freeTumbleHigh"];
+				freeReelSet = allReelSets["tumbleHigh"];
 				break;
 			}
 
 
 			freeReelSet.spinReels();
+
+			// All over/under symbols are boosted - use free game boost distributions
+			boostVecOver.clear();
+			boostVecUnder.clear();
+			for (int b = 0; b < boostOverPDVecFree.size(); ++b) {
+				boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());
+				boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
+			}
 
 			screen.generateScreen(freeReelSet);
 			screen.addSideSymbols(true, freeReelSet, boostVecOver);
@@ -328,7 +330,9 @@ public:
 
 			if (tumbleCount == 0) {
 				initialWin = calculateWaysWins(screen, baseGame);
-				auto [multIncrease, hasSuperboost] = boostsInWin(screen, baseGame);
+				std::pair<int, bool> boostInfo = boostsInWin(screen, baseGame);
+				int multIncrease = boostInfo.first;
+				bool hasSuperboost = boostInfo.second;
 				globalMult += multIncrease;
 				if (hasSuperboost) hasSuperboostInWin = true;
 				initialWin *= globalMult;
@@ -336,7 +340,9 @@ public:
 			}
 			else {
 				tempWin = calculateWaysWins(screen, baseGame);
-				auto [multIncrease, hasSuperboost] = boostsInWin(screen, baseGame);
+				std::pair<int, bool> boostInfo = boostsInWin(screen, baseGame);
+				int multIncrease = boostInfo.first;
+				bool hasSuperboost = boostInfo.second;
 				globalMult += multIncrease;
 				if (hasSuperboost) hasSuperboostInWin = true;
 				tempWin *= globalMult;

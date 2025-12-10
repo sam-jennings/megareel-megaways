@@ -38,7 +38,7 @@ enum SimulationMode {
 };
 
 LogMode logMode = NO_LOGGING; // NO_LOGGING, LOGGING, REPLAY
-SimulationMode simulationMode = CSV_MODE; // RANDOM_MODE;
+SimulationMode simulationMode = RANDOM_MODE; // RANDOM_MODE;
 
 
 

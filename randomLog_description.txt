@@ -7,9 +7,12 @@ BH_UR - Spin Base High under-reel
 BL - Spin Base Low reelset
 BL_OR - Spin Base Low over-reel
 BL_UR - Spin Base Low under-reel
-BT - Spin Base T reelset
-BT_OR - Spin Base T over-reel
-BT_UR - Spin Base T under-reel
+TL - Spin T Low reelset
+TL_OR - Spin T Low over-reel
+TL_UR - Spin T Low under-reel
+TH - Spin T High reelset
+TH_OR - Spin T High over-reel
+TH_UR - Spin T High under-reel
 NW1 - Spin Base N reelset
 NW1_OR - Spin Base N over-reel
 NW1_UR - Spin Base N under-reel
@@ -19,12 +22,7 @@ FL_UR - Spin Free Low under-reel
 FH - Spin Free High reelset
 FH_OR - Spin Free High over-reel
 FH_UR - Spin Free High under-reel
-FTL - Spin Free Low reelset
-FTL_OR - Spin Free Low over-reel
-FTL_UR - Spin Free Low under-reel
-FTH - Spin Free High reelset
-FTH_OR - Spin Free High over-reel
-FTH_UR - Spin Free High under-reel
+
 
 RH - Base and Free reel heights
 RHF - Free reel heights (not used)
@@ -33,3 +31,6 @@ BoostS_O - Starting symbol boosted Over-reel
 BoostS_U - Starting symbol boosted Under-reel
 BoostT_O - Tumbled symbol boosted Over-reel
 BoostT_U - Tumbled symbol boosted Under-reel
+
+BoostSF_O - Starting symbol Free Spins boosted Over-reel
+BoostSF_U - Starting symbol Free Spins boosted Under-reel
