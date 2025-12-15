@@ -139,7 +139,7 @@ public:
 				activeReels = allReelSets["tumbleHigh"];
 				break;
 			case 4:
-				activeReels = allReelSets["noWin1"];
+				activeReels = allReelSets["noWin2"];
 				break;
 			}
 
