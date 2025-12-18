@@ -67,7 +67,7 @@ private:
 			 tumbleReelSet = config->parseReelSet("tumbleHigh");*/
 			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
 			reelWeightsFree = config->parseVec<int32_t>("reelWeightsFree", rtpKey);
-			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3, 4}, reelWeights);
+			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3, 4, 5}, reelWeights);
 			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3}, reelWeightsFree);
 			cost = config->parseVar<int>("cost");
 			symbols = symbolStructure.getSymbols();
@@ -126,11 +126,10 @@ public:
 			lastReelSetID = reelID;
 			switch (reelID) {
 			case 0:
-				//activeReels = allReelSets["baseLow"]; 
-				activeReels = allReelSets["baseLow"];
+				activeReels = allReelSets["anteLow"]; 				
 				break;
 			case 1:
-				activeReels = allReelSets["baseHigh"];
+				activeReels = allReelSets["anteHigh"];
 				break;
 			case 2:
 				activeReels = allReelSets["tumbleLow"];
@@ -139,7 +138,10 @@ public:
 				activeReels = allReelSets["tumbleHigh"];
 				break;
 			case 4:
-				activeReels = allReelSets["noWin2"];
+				activeReels = allReelSets["noWinX"];
+				break;
+			case 5:
+				activeReels = allReelSets["freeTrigger"];
 				break;
 			}
 
