@@ -68,7 +68,7 @@ private:
 			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
 			reelWeightsFree = config->parseVec<int32_t>("reelWeightsFree", rtpKey);
 			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3, 4, 5}, reelWeights);
-			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3}, reelWeightsFree);
+			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3, 4}, reelWeightsFree);
 			cost = config->parseVar<int>("cost");
 			symbols = symbolStructure.getSymbols();
 			paytable = symbolStructure.getPaytable();
@@ -240,6 +240,9 @@ public:
 				break;
 			case 3:
 				freeReelSet = allReelSets["tumbleHigh"];
+				break;
+			case 4:
+				freeReelSet = allReelSets["noWinX"];
 				break;
 			}
 
