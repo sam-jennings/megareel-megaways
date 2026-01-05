@@ -126,7 +126,7 @@ public:
 			lastReelSetID = reelID;
 			switch (reelID) {
 			case 0:
-				activeReels = allReelSets["anteLow"]; 				
+				activeReels = allReelSets["anteLow"];
 				break;
 			case 1:
 				activeReels = allReelSets["anteHigh"];
@@ -135,7 +135,7 @@ public:
 				activeReels = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				activeReels = allReelSets["tumbleHigh"];
+				activeReels = allReelSets["tumbleHighAnte"];
 				break;
 			case 4:
 				activeReels = allReelSets["noWinX"];
@@ -207,7 +207,7 @@ public:
 
 		ReelSet freeReelSet;
 
-	
+
 
 		Screen screen(numReels, numRows);
 		screen.clearScreen();
@@ -239,7 +239,7 @@ public:
 				freeReelSet = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				freeReelSet = allReelSets["tumbleHigh"];
+				freeReelSet = allReelSets["tumbleHighAnte"];
 				break;
 			case 4:
 				freeReelSet = allReelSets["noWinX"];
@@ -314,7 +314,7 @@ public:
 				}
 			}
 		}
-		return {multIncrease, hasSuperboost};
+		return { multIncrease, hasSuperboost };
 	}
 
 	vector<double> handleCascades(Screen& screen, ReelSet& reelSet, ReelSet& offScreenReelSet,
