@@ -23,6 +23,12 @@ FH - Spin Free High reelset
 FH_OR - Spin Free High over-reel
 FH_UR - Spin Free High under-reel
 
+AN - Spin Ante N reelset
+FT - Spin Ante F reelset
+TLA - Spin T Low Ante reelset
+THA - Spin T High Ante reelset
+AL - Spin Ante Low reelset
+AH - Spin Ante High reelset
 
 RH - Base and Free reel heights
 RHF - Free reel heights (not used)

@@ -132,7 +132,7 @@ public:
 				activeReels = allReelSets["anteHigh"];
 				break;
 			case 2:
-				activeReels = allReelSets["tumbleLow"];
+				activeReels = allReelSets["tumbleLowAnte"];
 				break;
 			case 3:
 				activeReels = allReelSets["tumbleHighAnte"];
@@ -236,7 +236,7 @@ public:
 				break;
 			case 2:
 				//freeReelSet = allReelSets["baseTumble"];
-				freeReelSet = allReelSets["tumbleLow"];
+				freeReelSet = allReelSets["tumbleLowAnte"];
 				break;
 			case 3:
 				freeReelSet = allReelSets["tumbleHighAnte"];
