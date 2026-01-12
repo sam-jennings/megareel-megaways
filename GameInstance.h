@@ -224,7 +224,8 @@ public:
 			}
 			screen.resize(reelHeights);
 
-			int reelID = ReelsFreePD.getRandomPrize();
+			reelID = ReelsFreePD.getRandomPrize();
+		
 
 			switch (reelID) {
 			case 0:
@@ -269,6 +270,10 @@ public:
 			pays[0] += tempPays[0];
 			pays[0] += tempPays[1];
 
+			// Individual free spin hit rate tracking
+			bool spinHit = (tempPays[0] + tempPays[1] > 0);
+			stats.recordFreeSpin(spinHit);
+			
 			freeSpinsRemaining--;
 
 		}

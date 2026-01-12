@@ -55,6 +55,10 @@ private:
 	double totalWinnings = 0.0;
 	std::pair<int, double> moneyEntry; // <count, amount>
 
+	// Individual free-spin hit tracking
+	long long totalFreeSpinsPlayed = 0;
+	long long freeSpinHits = 0;
+
 	// Add inside class Stats (private section)
 	template<typename Map>
 	static void writeSortedFrequency(std::ofstream& file, const std::string& keyHeader, const std::string& valueHeader, const Map& freq) {
@@ -190,6 +194,20 @@ public:
 	void recordFreeSpins(int freeSpins) {
 		std::lock_guard<std::mutex> lock(statsMutex);
 		freeSpinsFreq[freeSpins]++;
+	}
+
+	// Record a single free spin result (used to compute individual free-spin hit rate)
+	void recordFreeSpin(bool hit) {
+		std::lock_guard<std::mutex> lock(statsMutex);
+		totalFreeSpinsPlayed++;
+		if (hit) freeSpinHits++;
+	}
+
+	// Return ratio of free spins that had any win (0..1)
+	double getFreeSpinHitRate() const {
+		//std::lock_guard<std::mutex> lock(statsMutex);
+		if (totalFreeSpinsPlayed == 0) return 0.0;
+		return static_cast<double>(totalFreeSpinsPlayed) / static_cast<double>(freeSpinHits);
 	}
 
 	//double calculateAverageTumbleFrequency() const {
@@ -364,6 +382,10 @@ public:
 		totalWinsBase += other.totalWinsBase;
 		totalWinsFree += other.totalWinsFree;
 
+		// Aggregate free-spin hit counters
+		totalFreeSpinsPlayed += other.totalFreeSpinsPlayed;
+		freeSpinHits += other.freeSpinHits;
+
 		moneyEntry.first += other.moneyEntry.first;
 		moneyEntry.second += other.moneyEntry.second;
 
@@ -459,7 +481,9 @@ public:
 		file << "----------------------------------------\n";
 		file << "Tumble Frequencies Base\n";
 		writeSortedFrequency(file, "Number Tumble", "Frequency", tumbleFreq);
-
+		// Individual free-spin hit rate output
+		file << "----------------------------------------\n";
+		file << "Individual Free-Spin Hit Rate:\t" << std::setprecision(6) << (getFreeSpinHitRate()) << '\n';
 		file << "----------------------------------------\n";
 		file << "Multiplier Hit Rate: " << '\t' << calculateMultiplierHitRate() << '\n';
 		file << "Average Final Multiplier: " << '\t' << calculateAverageFrequency(multFreq) << '\n';
@@ -511,38 +535,11 @@ public:
 		} else {
 			file << "\t(0%)\n";
 		}
-		file << "----------------------------------------\n";
-		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n";
 
-		std::vector<int> initKeys;
-		initKeys.reserve(multFreqFreeByInit.size());
-		for (const auto& kv : multFreqFreeByInit) initKeys.push_back(kv.first);
-		std::sort(initKeys.begin(), initKeys.end());
-
-		for (int init : initKeys) {
-			const auto& freq = multFreqFreeByInit.at(init);
-
-			// Average for this init
-			double avg = calculateAverageFrequency(const_cast<std::unordered_map<int, long long>&>(freq));
-
-			// Dump a table per init
-			file << "Init Multiplier: " << init << "\n";
-			file << "Average Final Multiplier (init " << init << "):\t" << avg << "\n";
-			writeSortedFrequency(file, "Final Mult", "Frequency", freq);
-			/*file << "Final Mult\tFrequency\n";
-
-			std::vector<std::pair<int, long long>> rows(freq.begin(), freq.end());
-			std::sort(rows.begin(), rows.end(),
-				[](auto& a, auto& b) { return a.first < b.first; });
-
-			for (const auto& p : rows) {
-				file << p.first << '\t' << p.second << '\n';
-			}*/
-			file << "----------------------------------------\n";
-		}
-		/*
-	file << "Scale Pair Frequencies\n";
-	outputScalePairFrequencies(file);*/
+		
+		/*file << "----------------------------------------\n";
+		file << "Final Multiplier Frequencies Free Spins (split by initial multiplier)\n"; */
+		
 	}
 
 	void printFrequencyTableToFile(const std::string& categoryName, const std::unordered_map<double, long long>& frequencyMap) const {
