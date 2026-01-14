@@ -126,16 +126,16 @@ public:
 			lastReelSetID = reelID;
 			switch (reelID) {
 			case 0:
-				activeReels = allReelSets["anteLow"];
+				activeReels = allReelSets["baseLow"];
 				break;
 			case 1:
-				activeReels = allReelSets["anteHigh"];
+				activeReels = allReelSets["baseHigh"];
 				break;
 			case 2:
-				activeReels = allReelSets["tumbleLowAnte"];
+				activeReels = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				activeReels = allReelSets["tumbleHighAnte"];
+				activeReels = allReelSets["tumbleHigh"];
 				break;
 			case 4:
 				activeReels = allReelSets["noWinX"];
@@ -236,10 +236,13 @@ public:
 				break;
 			case 2:
 				//freeReelSet = allReelSets["baseTumble"];
-				freeReelSet = allReelSets["tumbleLowAnte"];
+				freeReelSet = allReelSets["tumbleLow"];
 				break;
 			case 3:
-				freeReelSet = allReelSets["tumbleHighAnte"];
+				freeReelSet = allReelSets["tumbleHigh"];
+				break;
+			case 4:
+				freeReelSet = allReelSets["noWinX"];
 				break;
 			case 4:
 				freeReelSet = allReelSets["noWinX"];
