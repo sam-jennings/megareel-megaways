@@ -101,6 +101,8 @@ public:
 		ReelSet activeReels;
 		int globalMult;
 
+		RandomLogGenerator::setMaxRoundWin(100000);
+
 		/*	boostPDVec.resize(boostWeights.size());
 			for (int i = 0; i < boostWeights.size(); ++i) {
 				boostPDVec[i] = PrizeDistribution<int>("BS_" + std::to_string(i + 1),
@@ -192,6 +194,11 @@ public:
 			//pays[TOTAL] = std::accumulate(pays.begin(), pays.end() - 2, 0.0);
 			pays[TOTAL] = pays[INITIAL] + pays[TUMBLE] + pays[FREE_TOTAL];
 
+			// Cap TOTAL before sending to Stats (works in LOGGING and NO_LOGGING)
+			const double cap = RandomLogGenerator::maxRoundWin;            // public static
+			if (pays[TOTAL] > cap)
+				pays[TOTAL] = cap;
+
 			if (pays[TOTAL])
 				stats.trackFeatureActivation("Base");
 
@@ -204,7 +211,7 @@ public:
 		vector<double> tempPays;
 		int multiplier = initMult;
 		int freeSpinsRemaining = numFreeGames;
-
+		int reelID;
 		ReelSet freeReelSet;
 
 
@@ -225,7 +232,7 @@ public:
 			screen.resize(reelHeights);
 
 			reelID = ReelsFreePD.getRandomPrize();
-		
+
 
 			switch (reelID) {
 			case 0:
@@ -241,9 +248,6 @@ public:
 				break;
 			case 3:
 				freeReelSet = allReelSets["tumbleHigh"];
-				break;
-			case 4:
-				freeReelSet = allReelSets["noWinX"];
 				break;
 			case 4:
 				freeReelSet = allReelSets["noWinX"];
@@ -273,7 +277,7 @@ public:
 			// Individual free spin hit rate tracking
 			bool spinHit = (tempPays[0] + tempPays[1] > 0);
 			stats.recordFreeSpin(spinHit);
-			
+
 			freeSpinsRemaining--;
 
 		}
