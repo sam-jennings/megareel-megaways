@@ -101,7 +101,7 @@ public:
 		ReelSet activeReels;
 		int globalMult;
 
-		RandomLogGenerator::setMaxRoundWin(100000);
+		//RandomLogGenerator::setMaxRoundWin(200000);
 
 		/*	boostPDVec.resize(boostWeights.size());
 			for (int i = 0; i < boostWeights.size(); ++i) {
