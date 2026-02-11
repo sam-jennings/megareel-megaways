@@ -377,7 +377,7 @@ public:
     }
 
     // Modified cascade method for integrated over/under reels
-    void cascadeSideRowIntegrated(bool over, ReelSet& rs, int boostProb, int superBoostProb = 0) {
+    void cascadeSideRowIntegrated(bool over, ReelSet& rs,const std::vector<int>& boostWeights) {
         // Check if this reelset has the requested side reel
         if (over && !rs.hasOverReel()) return;
         if (!over && !rs.hasUnderReel()) return;
@@ -401,22 +401,14 @@ public:
                     row[p] = row[p + 1];
 
                 // Determine boost level for new symbol
-                int boostLevel = 0;
-                if (boostProb == 100 && superBoostProb == 100) {
-                    boostLevel = 2;  // Always superboost
-                }
-                else if (boostProb == 100) {
-                    boostLevel = 1;  // Always regular boost
+                int boostLevel;
+                if (boostWeights[2] == 100) {
+                    boostLevel = 2;
                 }
                 else {
-                    int roll = getRand(std::string("BoostT_") + (over ? "O" : "U"), 100);
-                    if (roll < superBoostProb) {
-                        boostLevel = 2;  // Superboost
-                    }
-                    else if (roll < boostProb) {
-                        boostLevel = 1;  // Regular boost
-                    }
+                    boostLevel = getRandFromDist(std::string("BoostT_") + (over ? "O" : "U"), boostWeights);
                 }
+
                 row[SIDE_LEN - 1] = SideCell{ strip[next], boostLevel };
 
                 // the window advanced by one:

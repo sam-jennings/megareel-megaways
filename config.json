@@ -470,6 +470,13 @@
       "weights": [3, 10, 30, 40, 17]
     }
   },
+  "superBoost": {
+    "mask": "SBM",
+    "prizes": [2, 3, 5, 8, 10, 15],
+    "weights": [25, 25, 20, 15, 10, 5]
+  },
+  "cascadeWeights" : [50, 50, 0],
+  "cascadeWeightsFree" : [0, 90, 10],
   "boostWeightsOver": {
     "boostO1": {
       "mask": "BoostS_O1",

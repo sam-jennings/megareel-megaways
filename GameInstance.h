@@ -23,12 +23,12 @@ private:
 	std::vector<std::vector<int>> boostWeights;
 	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
 	std::vector<PrizeDistribution<int>> boostOverPDVecFree, boostUnderPDVecFree;
-	std::vector<int> boostVecOver, boostVecUnder;
+	std::vector<int> boostVecOver, boostVecUnder, cascadeWeights, cascadeWeightsFree;
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
 	std::unordered_map<std::string, ReelSet> allReelSets;
 	std::vector<int> reelWeights, reelWeightsFree;
-	PrizeDistribution<int> ReelsPD, ReelsFreePD;
+	PrizeDistribution<int> ReelsPD, ReelsFreePD, superBoostPD;
 	vector<PrizeDistribution<double>> moneyPrizes;
 	// Game variables
 	Screen screen;
@@ -59,6 +59,9 @@ private:
 			boostUnderPDVec = config->parsePDVec<int>("boostWeightsUnder");
 			boostOverPDVecFree = config->parsePDVec<int>("boostWeightsOverFree");
 			boostUnderPDVecFree = config->parsePDVec<int>("boostWeightsUnderFree");
+			superBoostPD = config->parsePrizeDistribution<int>("superBoost");
+			cascadeWeights = config->parseVec<int>("cascadeWeights");
+			cascadeWeightsFree = config->parseVec<int>("cascadeWeightsFree");
 			//boostWeights = config->parseArray<int>("boostWeights");
 			payHeaders = config->getRTPHeaders();
 			symbolStructure = config->parseSymbolStructure();
@@ -302,7 +305,7 @@ public:
 				int boostLevel = screen.getSideBoostLevel(true, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) {
-					multIncrease += 10; // Superboost: +10
+					multIncrease += superBoostPD.getRandomPrize(); // Superboost variable
 					hasSuperboost = true;
 				}
 
@@ -316,7 +319,7 @@ public:
 				int boostLevel = screen.getSideBoostLevel(false, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) {
-					multIncrease += 10; // Superboost: +10
+					multIncrease += superBoostPD.getRandomPrize(); // Superboost variable
 					hasSuperboost = true;
 				}
 
@@ -377,10 +380,10 @@ public:
 				// Updated cascade calls - use the integrated over/under reels
 				if (reelSet.hasOverReel()) {
 					//screen.cascadeSideRowIntegrated(true, reelSet, 50);
-					screen.cascadeSideRowIntegrated(true, reelSet, baseGame ? 50 : 100);
+					screen.cascadeSideRowIntegrated(true, reelSet, baseGame ? cascadeWeights : cascadeWeightsFree);
 				}
 				if (reelSet.hasUnderReel()) {
-					screen.cascadeSideRowIntegrated(false, reelSet, baseGame ? 50 : 100);
+					screen.cascadeSideRowIntegrated(false, reelSet, baseGame ? cascadeWeights : cascadeWeightsFree);
 				}
 			}
 		} while (hasNewWins);
