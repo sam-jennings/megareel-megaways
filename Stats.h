@@ -25,6 +25,7 @@ private:
 
 	long long numIterations;
 	long long baseGameHits = 0;
+	long long breakEvenOrBetterSpins = 0; // Track spins that pay >= cost
 	double costPerSpin;
 	double totalWin;
 	std::vector<std::string> rtpHeaders;
@@ -258,6 +259,11 @@ public:
 		if (pays[0] > 0) {
 			baseGameHits++;
 		}
+		// Track if total payout is >= cost per spin
+		double totalPay = pays.back();
+		if (totalPay >= costPerSpin) {
+			breakEvenOrBetterSpins++;
+		}
 		lastPay = pays;
 	}
 
@@ -317,6 +323,7 @@ public:
 		numIterations += other.numIterations;
 		totalWin += other.totalWin;
 		baseGameHits += other.baseGameHits;
+		breakEvenOrBetterSpins += other.breakEvenOrBetterSpins;
 
 		for (size_t i = 0; i < payVector.size(); ++i) {
 			payVector[i] += other.payVector[i];
@@ -419,6 +426,14 @@ public:
 		file << "Iterations\t" << numIterations << '\n';
 		file << "Total Pay\t" << payVector[3] << '\n';
 
+		// Output break-even or better rate
+		file << "Break-Even or Better Spins\t" << breakEvenOrBetterSpins << '\n';
+		if (numIterations > 0) {
+			double breakEvenRate = static_cast<double>(numIterations) / static_cast<double>(breakEvenOrBetterSpins);
+			file << "Break-Even or Better Rate\t1 in " << std::setprecision(6) << "\t" << breakEvenRate << '\n';
+		}
+		file << "----------------------------------------\n";
+
 		// Sort featureHits by name as featureHitsOrdered
 		file << "Feature Hits\n";
 
@@ -471,6 +486,22 @@ public:
 			}
 			file << '\n';
 		}
+
+		file << "----------------------------------------\n";
+
+		file << "Free Pays\n";
+		for (size_t i = 0; i < freeSymPays[0].size(); ++i) {
+			file << '\t' << i + 1;
+		}
+		file << '\n';
+		for (size_t i = 0; i < freeSymPays.size(); ++i) {
+			file << symbolStructure.getSymbols()[i];
+			for (const auto& pays : freeSymPays[i]) {
+				file << '\t' << pays;
+			}
+			file << '\n';
+		}
+
 		file << "----------------------------------------\n";
 		file << "Average Free Spins: " << '\t' << calculateAverageFrequency(freeSpinsFreq) << '\n';
 		file << "----------------------------------------\n";
