@@ -157,7 +157,9 @@ public:
 			boostVecOver.clear();
 			boostVecUnder.clear();
 			for (int b = 0; b < boostOverPDVec.size(); ++b) {
-				boostVecOver.push_back(boostOverPDVec[b].getRandomPrize());
+				boostVecOver.push_back(boostOverPDVec[b].getRandomPrize());				
+			}
+			for (int b = 0; b < boostUnderPDVec.size(); ++b) {
 				boostVecUnder.push_back(boostUnderPDVec[b].getRandomPrize());
 			}
 
@@ -171,6 +173,9 @@ public:
 			if (activeReels.hasUnderReel()) {
 				screen.addSideSymbols(false, activeReels, boostVecUnder);
 			}
+
+			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
+			screen.assignSuperboostMultipliers(rollSuperboost);
 
 			baseVector = handleCascades(screen, activeReels, activeReels, false, true, globalMult);
 			basePay = baseVector[0] + baseVector[1];
@@ -264,13 +269,19 @@ public:
 			boostVecOver.clear();
 			boostVecUnder.clear();
 			for (int b = 0; b < boostOverPDVecFree.size(); ++b) {
-				boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());
-				boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
+				boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());				
 			}
+			for (int b = 0; b < boostUnderPDVecFree.size(); ++b) {
+				boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
+			}	
 
 			screen.generateScreen(freeReelSet);
 			screen.addSideSymbols(true, freeReelSet, boostVecOver);
 			screen.addSideSymbols(false, freeReelSet, boostVecUnder);
+
+			// NEW:
+			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
+			screen.assignSuperboostMultipliers(rollSuperboost);
 
 			// Handle cascades for free spins
 			tempPays = handleCascades(screen, freeReelSet, freeReelSet, false, false, multiplier);
@@ -305,7 +316,7 @@ public:
 				int boostLevel = screen.getSideBoostLevel(true, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) {
-					multIncrease += superBoostPD.getRandomPrize(); // Superboost variable
+					multIncrease += screen.getSideMultiplier(true, reel - 1);  // use pre-assigned value
 					hasSuperboost = true;
 				}
 
@@ -319,7 +330,8 @@ public:
 				int boostLevel = screen.getSideBoostLevel(false, reel - 1);
 				if (boostLevel == 1) multIncrease += 1;       // Regular boost: +1
 				else if (boostLevel == 2) {
-					multIncrease += superBoostPD.getRandomPrize(); // Superboost variable
+					multIncrease += screen.getSideMultiplier(false, reel - 1);  // use pre-assigned value
+
 					hasSuperboost = true;
 				}
 
@@ -385,6 +397,9 @@ public:
 				if (reelSet.hasUnderReel()) {
 					screen.cascadeSideRowIntegrated(false, reelSet, baseGame ? cascadeWeights : cascadeWeightsFree);
 				}
+				// NEW: assign multipliers to any newly cascaded superboost symbols
+				auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
+				screen.assignSuperboostMultipliers(rollSuperboost);
 			}
 		} while (hasNewWins);
 

@@ -13,7 +13,8 @@ using json = nlohmann::json;
 
 struct SideCell {
     std::string name;
-    int boostLevel = 0;  // 0=none, 1=regular boost (+1), 2=superboost (+10)
+    int boostLevel = 0;   // 0=none, 1=regular boost (+1), 2=superboost
+    int superMult = 0;    // Pre-assigned multiplier for superboost symbols (0 = not yet assigned)
 };
 
 class Screen {
@@ -59,10 +60,11 @@ public:
         return symbol == target;
     }
 
-    void setSideSymbol(bool over, int idx, const std::string& s, int boostLevel = 0) {
+    void setSideSymbol(bool over, int idx, const std::string& s, int boostLevel = 0, int superMult = 0) {
         auto& cell = (over ? overRow : underRow)[idx];
         cell.name = s;
         cell.boostLevel = boostLevel;
+        cell.superMult = superMult;
     }
 
     std::string getSideSymbol(bool over, int idx) const {
@@ -77,7 +79,20 @@ public:
         (over ? overRow : underRow)[idx].boostLevel = level;
     }
 
+    int getSideMultiplier(bool over, int idx) const {
+        return (over ? overRow : underRow)[idx].superMult;
+    }
 
+    // Call this after addSideSymbols() and after each cascadeSideRowIntegrated()
+    // rollFn should call superBoostPD.getRandomPrize() from GameInstance
+    void assignSuperboostMultipliers(std::function<int()> rollFn) {
+        for (auto& cell : overRow)
+            if (cell.boostLevel == 2 && cell.superMult == 0 && !cell.name.empty())
+                cell.superMult = rollFn();
+        for (auto& cell : underRow)
+            if (cell.boostLevel == 2 && cell.superMult == 0 && !cell.name.empty())
+                cell.superMult = rollFn();
+    }
     // add symbols to over/under reels from ReelSet
  /*   void addSideSymbols(bool over, const ReelSet& rs, std::vector<bool> boostVec = { 0,0,0,0 }) {
         const auto& strip = rs.reels[0].symbols;
@@ -481,10 +496,10 @@ public:
             }
             else if (middleReel(reel)) {
                 if (row == -1) {
-                    overRow[reel - 1].name = ""; overRow[reel - 1].boostLevel = 0;
+                    overRow[reel - 1] = SideCell{};   // resets name, boostLevel, superMult
                 }
                 else if (row == -2) {
-                    underRow[reel - 1].name = ""; underRow[reel - 1].boostLevel = 0;
+                    underRow[reel - 1] = SideCell{};
                 }
             }
         }
