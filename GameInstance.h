@@ -234,8 +234,8 @@ public:
 
 			std::vector<int> reelHeights(numReels);
 			for (int r = 0; r < numReels; ++r) {
-				//reelHeights[r] = reelHeightFreePD[r].getRandomPrize();
-				reelHeights[r] = reelHeightPD[r].getRandomPrize();
+				reelHeights[r] = reelHeightFreePD[r].getRandomPrize();
+				//reelHeights[r] = reelHeightPD[r].getRandomPrize();
 			}
 			screen.resize(reelHeights);
 
