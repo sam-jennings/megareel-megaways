@@ -473,6 +473,21 @@ public:
 
 		file << "----------------------------------------\n";
 
+		file << "Base Pays\n";
+		for (size_t i = 0; i < baseSymPays[0].size(); ++i) {
+			file << '\t' << i + 1;
+		}
+		file << '\n';
+		for (size_t i = 0; i < baseSymPays.size(); ++i) {
+			file << symbolStructure.getSymbols()[i];
+			for (const auto& pays : baseSymPays[i]) {
+				file << '\t' << pays;
+			}
+			file << '\n';
+		}
+
+		file << "----------------------------------------\n";
+
 		file << "Free Hits\n";
 		file << "Symbol";
 		for (size_t i = 0; i < freeSymHits[0].size(); ++i) {
