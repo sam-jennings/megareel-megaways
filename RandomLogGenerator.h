@@ -198,9 +198,10 @@ void RandomLogGenerator::endRound() {
     // Log the game details (screen state) to gameDetails.txt
     gameDetailsFile << "{" << std::endl;
     for (size_t i = 0; i < currentSpin; ++i) {
-        gameDetailsFile << "  \"spin_" << i << "\": [" << std::endl;
+        gameDetailsFile << "  \"spin_" << i << "\": {" << std::endl;
         gameDetailsFile << "  \"Screen" << "\": [" << std::endl;
         for (size_t screenIdx = 0; screenIdx < roundScreens[i].size(); ++screenIdx) {
+            gameDetailsFile << "    [" << std::endl;
             for (size_t rowIdx = 0; rowIdx < roundScreens[i][screenIdx].size(); ++rowIdx) {
                 const auto& row = roundScreens[i][screenIdx][rowIdx];
                 gameDetailsFile << "    [";
@@ -220,7 +221,7 @@ void RandomLogGenerator::endRound() {
 
             gameDetailsFile << std::endl;
         }
-
+        gameDetailsFile << "]" << std::endl << "}";
         // gameDetailsFile << "}" << std::endl;
         if (i < currentSpin - 1) {
             gameDetailsFile << ",";
@@ -260,16 +261,15 @@ bool RandomLogGenerator::endSpin() {
             for (double tumbleWin : currentSpinTumbleWins) {
                 std::ostringstream ossTumble;
                 ossTumble << std::fixed << std::setprecision(2) << tumbleWin / 100;
-                randomsLine += ",#" + ossTumble.str();
+                randomsLine += "#" + ossTumble.str() + ";";
             }
-            randomsLine += ";";
             // (Do not append aggregated currentSpinTotalWin)
         }
         else {
             // In aggregated mode, output the overall spin win.
             std::ostringstream oss;
             oss << std::fixed << std::setprecision(2) << currentSpinTotalWin / 100;
-            randomsLine += ",#" + oss.str() + ";";
+            randomsLine += "#" + oss.str() + ";";
         }
 
 
