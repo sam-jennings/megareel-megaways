@@ -6,8 +6,12 @@
 #include <numeric>
 #include <algorithm>  // std::upper_bound
 #include <unordered_map>
+#include <cstdint>    // uint8_t
 #include <random>
 #include "RandomUtils.h"
+
+// Sentinel value stored in the grid and SideCell when a cell contains no symbol.
+static constexpr uint8_t EMPTY_SYM = 0xFF;
 
 struct Symbol {
     std::string name;
@@ -29,6 +33,7 @@ private:
     std::unordered_map<std::string, std::vector<std::string>> wildSubstitutions;
     // Fast O(1) name → index lookup; built once in every constructor.
     std::unordered_map<std::string, int> symbolLookup;
+    uint8_t wildId = EMPTY_SYM;  // precomputed ID of the wild symbol (0xFF = no wild)
 
 public:
     SymbolStructure() = default;
@@ -65,6 +70,14 @@ public:
     const std::vector< std::vector<int>>& getPaytableVec() const { return paytable_vec; }
     const std::map<std::string, std::vector<int>>& getPaytable() const { return paytable; }
     const std::vector<int>& getScatterPrizes() const { return scatterPrizes; }
+    const std::unordered_map<std::string, int>& getLookup() const { return symbolLookup; }
+    uint8_t getWildId() const { return wildId; }
+
+    // Call once after construction to register the wild symbol name.
+    void setWild(const std::string& wildName) {
+        auto it = symbolLookup.find(wildName);
+        wildId = (it != symbolLookup.end()) ? static_cast<uint8_t>(it->second) : EMPTY_SYM;
+    }
 
     // Additional functionality for SymbolStructure can go here
     // For example, a method to find a symbol by name and return its index or payouts
@@ -95,6 +108,7 @@ struct Reel {
     std::vector<int> weights;
     std::vector<int> cumWeights;  // precomputed cumulative weights (only when weighted)
     int totalWeight = 0;          // precomputed total weight
+    std::vector<uint8_t> symbolIds; // hot-path: integer IDs for every symbol on this reel strip
 
     // Constructor to accept a vector of strings
     Reel(const std::vector<std::string>& _symbols, const std::vector<int>& _weights = {})
@@ -111,6 +125,16 @@ struct Reel {
     }
 
     bool isWeighted() const { return !weights.empty(); }
+
+    // Populate symbolIds from the name→index lookup in SymbolStructure.
+    // Must be called once before any hot-path spin code that reads symbolIds.
+    void buildIds(const std::unordered_map<std::string, int>& lookup) {
+        symbolIds.resize(symbols.size());
+        for (size_t i = 0; i < symbols.size(); ++i) {
+            auto it = lookup.find(symbols[i]);
+            symbolIds[i] = (it != lookup.end()) ? static_cast<uint8_t>(it->second) : EMPTY_SYM;
+        }
+    }
 };
 
 class ReelSet {
@@ -197,6 +221,16 @@ public:
 
     // Move assignment operator
     ReelSet& operator=(ReelSet&& other) noexcept = default;
+
+    // Build uint8_t symbolIds for every reel (and over/under reels) in this set.
+    // Must be called once per ReelSet before any hot-path spin code.
+    void buildSymbolIds(const std::unordered_map<std::string, int>& lookup) {
+        for (auto& reel : reels) {
+            reel.buildIds(lookup);
+        }
+        if (overReel)  overReel->buildIds(lookup);
+        if (underReel) underReel->buildIds(lookup);
+    }
 
     // Check if this reelset has over/under reels
     bool hasOverReel() const { return overReel != nullptr; }

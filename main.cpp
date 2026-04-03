@@ -30,7 +30,7 @@ public:
     }
 };
 
-SimulationMode simulationMode = LOG_MODE; // SIMULATE_MODE, LOG_MODE, REPLAY_MODE, PLAYER_MODE, CSV_MODE
+SimulationMode simulationMode = SIMULATE_MODE; // SIMULATE_MODE, LOG_MODE, REPLAY_MODE, PLAYER_MODE, CSV_MODE
 
 
 
@@ -56,7 +56,7 @@ int main() {
     std::vector<std::string> gameInfo = config->getGameInfo();
     const double costPerSpin = config->parseVar<double>("cost");
 
-    long long numberOfSpins = 10000000LL; //logging: 100000 
+    long long numberOfSpins = 5000000000LL; //logging: 100000 
 
 
 

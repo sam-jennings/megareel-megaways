@@ -40,6 +40,7 @@ private:
 	int spinCount;
 	int baseTumbleCount;
 	int lastReelSetID = -1;
+	uint8_t scatterSymId = EMPTY_SYM;  // precomputed ID of the scatter/F1 symbol
 
 
 
@@ -98,6 +99,20 @@ private:
 				allReelSets["tumbleHigh"],
 				allReelSets["noWinX"]
 			};
+
+			// Build uint8_t symbolId arrays on every reel strip (symbol interning).
+			// Done once here so the hot-path spin/cascade code never touches std::string.
+			const auto& lookup = symbolStructure.getLookup();
+			for (auto& rs : cachedBaseReels) rs.buildSymbolIds(lookup);
+			for (auto& rs : cachedFreeReels) rs.buildSymbolIds(lookup);
+			for (auto& kv : allReelSets)     kv.second.buildSymbolIds(lookup);
+
+			// Register the wild symbol and initialise the screen name table.
+			symbolStructure.setWild("WL");
+			screen.init(symbols, symbolStructure.getWildId());
+
+			// Precompute scatter (F1) symbol ID for playBaseGame hot path.
+			scatterSymId = static_cast<uint8_t>(symbolStructure.findSymbolIndex("F1"));
 		}
 
 	};
@@ -190,7 +205,7 @@ public:
 			pays[TUMBLE] += baseVector[1];
 			pays[BASE] += basePay;
 
-			int fgCount = screen.countSymbolOnScreen("F1", false);
+			int fgCount = screen.countSymbolOnScreen(scatterSymId, false);
 			if (fgCount >= 3) {
 				freeVector = playFreeGames(5 * (fgCount - 3) + 10, 1);
 				stats.trackFeatureActivation("FS Trigger " + to_string(fgCount));
@@ -227,6 +242,7 @@ public:
 
 
 		Screen screen(numReels, numRows);
+		screen.init(symbols, symbolStructure.getWildId());
 		screen.clearScreen();
 
 
@@ -411,22 +427,25 @@ public:
 		// Clear previous marked positions
 		screen.clearMarkedPositions();
 
-		for (const auto& symbol : symbols) {
-			auto waysInfo = screen.getWaysForSymbol(symbol);
+		// Hot path: iterate by integer ID — no string comparisons inside the loop.
+		const auto& paytableVec = symbolStructure.getPaytableVec();
+		const int numSymbols = static_cast<int>(symbols.size());
+		for (int id = 0; id < numSymbols; ++id) {
+			const uint8_t uid = static_cast<uint8_t>(id);
+			auto waysInfo = screen.getWaysForSymbol(uid);
 			int length = waysInfo.first;
-			int ways = waysInfo.second;
+			int ways   = waysInfo.second;
 			int payout = 0;
 
 			if (length > 0) {
-				payout = currentMult * ways * paytable[symbol][length - 1];
+				payout = currentMult * ways * paytableVec[id][length - 1];
 				if (payout > 0) {
-					stats.trackResult(symbol, length, ways, payout, baseGame);
-					screen.markSymbol(symbol, length);
+					stats.trackResult(symbols[id], length, ways, payout, baseGame);
+					screen.markSymbol(uid, length);
 				}
 			}
 			totalPay += payout;
 		}
-
 
 		//RandomLogGenerator::addWinAmount(totalPay);
 		return totalPay;
