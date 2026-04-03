@@ -3,10 +3,10 @@
 #include <iomanip>
 
 // Global variables
-//LogMode logMode;
 int instructionIndex = 0;
 
 // Static member initialization
+bool RandomLogGenerator::logGameDetails = true;
 bool RandomLogGenerator::logTumbleWinsIndividually = true;
 std::ofstream RandomLogGenerator::randomLogFile;
 std::ofstream RandomLogGenerator::gameDetailsFile;
@@ -28,44 +28,48 @@ std::vector<RandTriple> RandomLogGenerator::randomLogInstructions;
 void RandomLogGenerator::setMaxRoundWin(double maxWin) { maxRoundWin = maxWin; }
 
 void RandomLogGenerator::openLogs(const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         randomLogFile.open(randomLogFileName);
-        gameDetailsFile.open(gameDetailsFileName);
+        if (logGameDetails)
+            gameDetailsFile.open(gameDetailsFileName);
     }
 }
 
 void RandomLogGenerator::closeLogs() {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         randomLogFile.close();
-        gameDetailsFile.close();
+        if (logGameDetails)
+            gameDetailsFile.close();
     }
 }
 
-bool RandomLogGenerator::handleLoggingMode(LogMode mode, const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
-    logMode = mode;
+bool RandomLogGenerator::handleLoggingMode(const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
     instructionIndex = 0;
 
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         openLogs(randomLogFileName, gameDetailsFileName);
         return true;
     }
 
-    if (logMode == REPLAY) {
+    if (simulationMode == REPLAY_MODE) {
         readAndParseLog(randomLogFileName);
-        gameDetailsFile.open(gameDetailsFileName);
+        if (logGameDetails)
+            gameDetailsFile.open(gameDetailsFileName);
         return !randomLogInstructions.empty();
     }
 
-    return false;
+    return false;  // SIMULATE_MODE or other modes: no logging
 }
 
 void RandomLogGenerator::startRound() {
-    if (logMode == LOGGING || logMode == REPLAY) {
+    if (simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) {
         currentRandoms.clear();
-        roundScreens.clear();
-        roundScales.clear();
-        roundMultipliers.clear();
-        roundWheelBonusPrizes.clear();
+        if (logGameDetails) {
+            roundScreens.clear();
+            roundScales.clear();
+            roundMultipliers.clear();
+            roundWheelBonusPrizes.clear();
+        }
         currentSpinTotalWin = 0.0;
         currentRoundTotalWin = 0.0;
         maxWinTriggered = false;
@@ -76,56 +80,58 @@ void RandomLogGenerator::startRound() {
 }
 
 void RandomLogGenerator::endRound() {
-    if (logMode == LOGGING) return;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return;
 
     endSpin();
 
-    if (logMode == LOGGING) {
-        double totalWin = maxWinTriggered ? maxRoundWin : currentRoundTotalWin;
-        randomLogFile << "#" << std::fixed << std::setprecision(2) << totalWin / 100 << std::endl;
-    }
+    double totalWin = maxWinTriggered ? maxRoundWin : currentRoundTotalWin;
+    randomLogFile << "#" << std::fixed << std::setprecision(2) << totalWin / 100 << std::endl;
 
-    gameDetailsFile << "{" << std::endl;
-    for (size_t i = 0; i < currentSpin; ++i) {
-        gameDetailsFile << "  \"spin_" << i << "\": [" << std::endl;
-        gameDetailsFile << "  \"Screen" << "\": [" << std::endl;
-        for (size_t screenIdx = 0; screenIdx < roundScreens[i].size(); ++screenIdx) {
-            for (size_t rowIdx = 0; rowIdx < roundScreens[i][screenIdx].size(); ++rowIdx) {
-                const auto& row = roundScreens[i][screenIdx][rowIdx];
-                gameDetailsFile << "    [";
-                for (size_t j = 0; j < row.size(); ++j) {
-                    gameDetailsFile << row[j];
-                    if (j < row.size() - 1) gameDetailsFile << ", ";
+    if (logGameDetails) {
+        gameDetailsFile << "{" << std::endl;
+        for (size_t i = 0; i < currentSpin; ++i) {
+            gameDetailsFile << "  \"spin_" << i << "\": [" << std::endl;
+            gameDetailsFile << "  \"Screen" << "\": [" << std::endl;
+            for (size_t screenIdx = 0; screenIdx < roundScreens[i].size(); ++screenIdx) {
+                for (size_t rowIdx = 0; rowIdx < roundScreens[i][screenIdx].size(); ++rowIdx) {
+                    const auto& row = roundScreens[i][screenIdx][rowIdx];
+                    gameDetailsFile << "    [";
+                    for (size_t j = 0; j < row.size(); ++j) {
+                        gameDetailsFile << row[j];
+                        if (j < row.size() - 1) gameDetailsFile << ", ";
+                    }
+                    gameDetailsFile << "]";
+                    if (rowIdx < roundScreens[i][screenIdx].size() - 1) gameDetailsFile << ",";
+                    gameDetailsFile << std::endl;
                 }
-                gameDetailsFile << "]";
-                if (rowIdx < roundScreens[i][screenIdx].size() - 1) gameDetailsFile << ",";
+                gameDetailsFile << "  ]";
+                if (screenIdx < roundScreens[i].size() - 1) gameDetailsFile << ",";
                 gameDetailsFile << std::endl;
             }
-            gameDetailsFile << "  ]";
-            if (screenIdx < roundScreens[i].size() - 1) gameDetailsFile << ",";
+            if (i < currentSpin - 1) gameDetailsFile << ",";
             gameDetailsFile << std::endl;
         }
-        if (i < currentSpin - 1) gameDetailsFile << ",";
-        gameDetailsFile << std::endl;
+        gameDetailsFile << "}" << std::endl;
+        gameDetailsFile << "========== end round: " << currentRound << " ===========" << std::endl;
     }
-    gameDetailsFile << "}" << std::endl;
-    gameDetailsFile << "========== end round: " << currentRound << " ===========" << std::endl;
 }
 
 void RandomLogGenerator::startSpin() {
-    if (logMode == NO_LOGGING) return;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return;
     currentRandoms.clear();
     currentSpinTotalWin = 0.0;
     currentSpin++;
-    roundScales.push_back({});
-    roundScreens.push_back({});
+    if (logGameDetails) {
+        roundScales.push_back({});
+        roundScreens.push_back({});
+    }
     currentSpinTumbleWins.clear();
 }
 
 bool RandomLogGenerator::endSpin() {
-    if (logMode == NO_LOGGING) return true;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return true;
 
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         std::string randomsLine = std::accumulate(currentRandoms.begin(), currentRandoms.end(), std::string(),
             [](const std::string& a, const std::string& b) { return a.empty() ? b : a + "," + b; });
 
@@ -161,19 +167,19 @@ bool RandomLogGenerator::newSpin() {
 }
 
 void RandomLogGenerator::addRandom(const RandTriple& randTriple) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         currentRandoms.push_back(randTriple.mask + ":" + std::to_string(randTriple.result) + ":" + std::to_string(randTriple.range));
     }
 }
 
 void RandomLogGenerator::addScreen(json screen) {
-    if (logMode != NO_LOGGING) {
+    if ((simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) && logGameDetails) {
         roundScreens[currentSpin - 1].push_back(screen);
     }
 }
 
 void RandomLogGenerator::addWinAmount(double winAmount) {
-    if (logMode == LOGGING || logMode == REPLAY) {
+    if (simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) {
         if (logTumbleWinsIndividually) {
             currentSpinTumbleWins.push_back(winAmount);
         }
@@ -190,13 +196,13 @@ void RandomLogGenerator::addWinAmount(double winAmount) {
 }
 
 void RandomLogGenerator::addMultipliers(std::vector<int>& multipliersUsed) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE && logGameDetails) {
         roundMultipliers.push_back(multipliersUsed);
     }
 }
 
 void RandomLogGenerator::addWheelBonusPrizes(std::vector<double>& wheelBonusPrizes) {
-    if (logMode == LOGGING && !wheelBonusPrizes.empty()) {
+    if (simulationMode == LOG_MODE && logGameDetails && !wheelBonusPrizes.empty()) {
         roundWheelBonusPrizes.push_back(wheelBonusPrizes);
     }
     else {

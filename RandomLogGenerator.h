@@ -19,13 +19,15 @@ struct RandTriple {
     int range;
 };
 
-enum LogMode {
-    NO_LOGGING,
-    LOGGING,
-    REPLAY
+enum SimulationMode {
+    SIMULATE_MODE,  // Full-speed simulation, no logging
+    LOG_MODE,       // Simulation with RNG + game-detail logging
+    REPLAY_MODE,    // Replay a previously logged RNG sequence
+    PLAYER_MODE,    // Simulate N players chasing a credit target
+    CSV_MODE        // Per-spin CSV output
 };
 
-extern LogMode logMode;
+extern SimulationMode simulationMode;
 extern int instructionIndex;  // Index for replaying randoms
 
 class RandomLogGenerator {
@@ -34,7 +36,11 @@ public:
     static std::ofstream randomLogFile;
     static std::ofstream gameDetailsFile;
 
-    // NEW: Toggle to choose logging mode.
+    // When true (default), both the randomLog and gameDetails files are written.
+    // Set to false for large runs where only the randomLog is needed: no gameDetails file
+    // is opened and no screen/scale/multiplier/prize data is stored in memory.
+    static bool logGameDetails;
+
     // When true, each tumble win (i.e. cascade win beyond the base win) is logged separately.
     // When false, wins are aggregated into one value.
     static bool logTumbleWinsIndividually;
@@ -79,7 +85,7 @@ public:
     static void addMultipliers(std::vector<int>& multipliersUsed);
     static void addWheelBonusPrizes(std::vector<double>& wheelBonusPrizes);
 
-    // Existing method for logging a win—modify it so that it behaves differently
+    // Existing method for logging a winï¿½modify it so that it behaves differently
     // based on the logging mode.
     static void addTumbleWin(double winAmount);
 
@@ -88,7 +94,7 @@ public:
     static std::vector<RandTriple> getRandomLogInstructions();
 
 
-    static bool handleLoggingMode(LogMode mode, const std::string& randomLogFileName, const std::string& gameDetailsFileName);
+    static bool handleLoggingMode(const std::string& randomLogFileName, const std::string& gameDetailsFileName);
 
 
 
@@ -98,7 +104,7 @@ private:
 };
 
 // Method Definitions
-// Initialize the toggle flag (default to false to preserve existing behavior)
+bool RandomLogGenerator::logGameDetails = true;
 bool RandomLogGenerator::logTumbleWinsIndividually = true;
 
 std::ofstream RandomLogGenerator::randomLogFile;
@@ -113,7 +119,6 @@ bool RandomLogGenerator::maxWinTriggered = false;
 std::vector<std::vector<json>> RandomLogGenerator::roundScreens;
 std::vector<std::vector<json>> RandomLogGenerator::roundScales;
 std::vector<RandTriple> RandomLogGenerator::randomLogInstructions;
-//LogMode logMode;
 int instructionIndex = 0;
 std::vector<std::vector<int>> RandomLogGenerator::roundMultipliers;
 std::vector<std::vector<double>> RandomLogGenerator::roundWheelBonusPrizes;
@@ -127,53 +132,52 @@ void RandomLogGenerator::setMaxRoundWin(double maxWin) {
 
 // Open log files
 void RandomLogGenerator::openLogs(const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         randomLogFile.open(randomLogFileName);
-        gameDetailsFile.open(gameDetailsFileName);
+        if (logGameDetails)
+            gameDetailsFile.open(gameDetailsFileName);
     }
 }
 
 // Close log files
 void RandomLogGenerator::closeLogs() {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         randomLogFile.close();
-        gameDetailsFile.close();
+        if (logGameDetails)
+            gameDetailsFile.close();
     }
 }
 
 
 // Handle different logging modes and file setup
-bool RandomLogGenerator::handleLoggingMode(LogMode mode, const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
-    logMode = mode;
+bool RandomLogGenerator::handleLoggingMode(const std::string& randomLogFileName, const std::string& gameDetailsFileName) {
     instructionIndex = 0;
 
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         openLogs(randomLogFileName, gameDetailsFileName);
         return true;
     }
 
-    if (logMode == REPLAY) {
+    if (simulationMode == REPLAY_MODE) {
         readAndParseLog(randomLogFileName);  // Read the log file for replay
-        // Open only the gameDetailsFile for writing in REPLAY mode
-        gameDetailsFile.open(gameDetailsFileName);
+        if (logGameDetails)
+            gameDetailsFile.open(gameDetailsFileName);
         return !randomLogInstructions.empty();
     }
 
-    if (logMode == NO_LOGGING) {
-        return false;  // No logging or replay, just execute normally
-    }
-
-    return false;
+    return false;  // SIMULATE_MODE or other modes: no logging
 }
 
 // Start a new round
 void RandomLogGenerator::startRound() {
-    if (logMode == LOGGING || logMode == REPLAY) {
+    if (simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) {
         currentRandoms.clear();
-        roundScreens.clear();
-        roundScales.clear();
-        roundMultipliers.clear();
-        roundWheelBonusPrizes.clear();
+        if (logGameDetails) {
+            roundScreens.clear();
+            roundScales.clear();
+            roundMultipliers.clear();
+            roundWheelBonusPrizes.clear();
+        }
         currentSpinTotalWin = 0.0;
         currentRoundTotalWin = 0.0;
         maxWinTriggered = false;
@@ -186,7 +190,7 @@ void RandomLogGenerator::startRound() {
 
 
 void RandomLogGenerator::endRound() {
-    if (logMode == NO_LOGGING) return;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return;
     
     endSpin();  // Finalize the last spin
 
@@ -196,60 +200,58 @@ void RandomLogGenerator::endRound() {
     
 
     // Log the game details (screen state) to gameDetails.txt
-    gameDetailsFile << "{" << std::endl;
-    for (size_t i = 0; i < currentSpin; ++i) {
-        gameDetailsFile << "  \"spin_" << i << "\": {" << std::endl;
-        gameDetailsFile << "  \"Screen" << "\": [" << std::endl;
-        for (size_t screenIdx = 0; screenIdx < roundScreens[i].size(); ++screenIdx) {
-            gameDetailsFile << "    [" << std::endl;
-            for (size_t rowIdx = 0; rowIdx < roundScreens[i][screenIdx].size(); ++rowIdx) {
-                const auto& row = roundScreens[i][screenIdx][rowIdx];
-                gameDetailsFile << "    [";
-                for (size_t j = 0; j < row.size(); ++j) {
-                    gameDetailsFile << row[j];  // Directly write the symbol without additional quotes
-                    if (j < row.size() - 1) gameDetailsFile << ", ";
+    if (logGameDetails) {
+        gameDetailsFile << "{" << std::endl;
+        for (size_t i = 0; i < currentSpin; ++i) {
+            gameDetailsFile << "  \"spin_" << i << "\": {" << std::endl;
+            gameDetailsFile << "  \"Screen" << "\": [" << std::endl;
+            for (size_t screenIdx = 0; screenIdx < roundScreens[i].size(); ++screenIdx) {
+                gameDetailsFile << "    [" << std::endl;
+                for (size_t rowIdx = 0; rowIdx < roundScreens[i][screenIdx].size(); ++rowIdx) {
+                    const auto& row = roundScreens[i][screenIdx][rowIdx];
+                    gameDetailsFile << "    [";
+                    for (size_t j = 0; j < row.size(); ++j) {
+                        gameDetailsFile << row[j];
+                        if (j < row.size() - 1) gameDetailsFile << ", ";
+                    }
+                    gameDetailsFile << "]";
+                    if (rowIdx < roundScreens[i][screenIdx].size() - 1)
+                        gameDetailsFile << ",";
+                    gameDetailsFile << std::endl;
                 }
-                gameDetailsFile << "]";
-                if (rowIdx < roundScreens[i][screenIdx].size() - 1) {
+                gameDetailsFile << "  ]";
+                if (screenIdx < roundScreens[i].size() - 1)
                     gameDetailsFile << ",";
-                }
                 gameDetailsFile << std::endl;
             }
-            gameDetailsFile << "  ]";
-            if (screenIdx < roundScreens[i].size() - 1)
+            gameDetailsFile << "]" << std::endl << "}";
+            if (i < currentSpin - 1)
                 gameDetailsFile << ",";
-
             gameDetailsFile << std::endl;
         }
-        gameDetailsFile << "]" << std::endl << "}";
-        // gameDetailsFile << "}" << std::endl;
-        if (i < currentSpin - 1) {
-            gameDetailsFile << ",";
-        }
-        gameDetailsFile << std::endl;
+        gameDetailsFile << "}" << std::endl;
+        gameDetailsFile << "========== end round: " << currentRound << " ===========" << std::endl;
     }
-
-    gameDetailsFile << "}" << std::endl;
-    gameDetailsFile << "========== end round: " << currentRound << " ===========" << std::endl;
 }
 
 // Start a new spin
 void RandomLogGenerator::startSpin() {
-    if (logMode == NO_LOGGING) return;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return;
     currentRandoms.clear();
     currentSpinTotalWin = 0.0;
     currentSpin++;
-    roundScales.push_back({});
-    roundScreens.push_back({});
-
+    if (logGameDetails) {
+        roundScales.push_back({});
+        roundScreens.push_back({});
+    }
     currentSpinTumbleWins.clear();
 }
 
 // End the spin and log its data
 bool RandomLogGenerator::endSpin() {
-    if (logMode == NO_LOGGING) return true;
+    if (simulationMode != LOG_MODE && simulationMode != REPLAY_MODE) return true;
 
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         // Log randoms and total win for the spin
         std::string randomsLine = std::accumulate(currentRandoms.begin(), currentRandoms.end(), std::string(),
             [](const std::string& a, const std::string& b) -> std::string {
@@ -297,21 +299,21 @@ bool RandomLogGenerator::newSpin() {
 
 // Add random result
 void RandomLogGenerator::addRandom(const RandTriple& randTriple) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE) {
         currentRandoms.push_back(randTriple.mask + ":" + std::to_string(randTriple.result) + ":" + std::to_string(randTriple.range));
     }
 }
 
 // Add screen state
 void RandomLogGenerator::addScreen(json screen) {
-    if (logMode != NO_LOGGING) {
+    if ((simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) && logGameDetails) {
         roundScreens[currentSpin - 1].push_back(screen);
     }
 }
 
 // Add win to the spin total
 void RandomLogGenerator::addWinAmount(double winAmount) {
-    if (logMode == LOGGING || logMode == REPLAY) {
+    if (simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) {
         if (logTumbleWinsIndividually) {
             // In individual mode, simply add a new entry for this cascade win.
             currentSpinTumbleWins.push_back(winAmount);
@@ -330,7 +332,7 @@ void RandomLogGenerator::addWinAmount(double winAmount) {
     }
 }
 
-// Modify addTumbleWin so that it “accumulates” differently depending on the flag.
+// Modify addTumbleWin so that it ï¿½accumulatesï¿½ differently depending on the flag.
 //void RandomLogGenerator::addTumbleWin(double winAmount) {
 //    if (logTumbleWinsIndividually) {
 //        // In individual mode, simply add a new entry for this cascade win.
@@ -351,13 +353,13 @@ void RandomLogGenerator::addWinAmount(double winAmount) {
 //}
 
 void RandomLogGenerator::addMultipliers(std::vector<int>& multipliersUsed) {
-    if (logMode == LOGGING) {
+    if (simulationMode == LOG_MODE && logGameDetails) {
         roundMultipliers.push_back(multipliersUsed);
     }
 }
 
 void RandomLogGenerator::addWheelBonusPrizes(std::vector<double>& wheelBonusPrizes) {
-    if (logMode == LOGGING && !wheelBonusPrizes.empty()) {
+    if (simulationMode == LOG_MODE && logGameDetails && !wheelBonusPrizes.empty()) {
         roundWheelBonusPrizes.push_back(wheelBonusPrizes);  // Add only non-empty bonuses
     }
     else {

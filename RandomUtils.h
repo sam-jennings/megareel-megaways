@@ -44,12 +44,12 @@ inline XorShift64Star& getThreadRng() {
 // Define a method to generate random numbers within a specified range
 inline int getRand(const std::string& mask, int range) {
     int index;
-    if (logMode == REPLAY) {
+    if (simulationMode == REPLAY_MODE) {
         std::vector<RandTriple> randomLogInstructions = RandomLogGenerator::getRandomLogInstructions();
         RandTriple currentInstruction = randomLogInstructions[instructionIndex++];
         if (instructionIndex >= randomLogInstructions.size()) {
             std::cout << "Error: End of log file" << std::endl;
-            logMode = NO_LOGGING;
+            simulationMode = SIMULATE_MODE;
         }
         if (currentInstruction.mask != mask)
             std::cout << "Error: Mask mismatch  " << currentInstruction.mask + ":" + std::to_string(currentInstruction.result) + ":" + std::to_string(currentInstruction.range) <<
@@ -66,7 +66,7 @@ inline int getRand(const std::string& mask, int range) {
         // (typically < 1 000 000) the bias from a 64-bit modulo is negligible (~1e-12).
         XorShift64Star& gen = getThreadRng();
         index = static_cast<int>(gen() % static_cast<uint64_t>(range));
-        if (logMode == 1) {
+        if (simulationMode == LOG_MODE) {
             RandTriple randTriple = { mask, index, range };
             RandomLogGenerator::addRandom(randTriple);
         }

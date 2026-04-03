@@ -30,15 +30,7 @@ public:
     }
 };
 
-enum SimulationMode {
-    EXACT_MODE,
-    RANDOM_MODE,
-    PLAYER_MODE,
-    CSV_MODE
-};
-
-LogMode logMode = NO_LOGGING; // NO_LOGGING, LOGGING, REPLAY
-SimulationMode simulationMode = RANDOM_MODE; // RANDOM_MODE;
+SimulationMode simulationMode = LOG_MODE; // SIMULATE_MODE, LOG_MODE, REPLAY_MODE, PLAYER_MODE, CSV_MODE
 
 
 
@@ -64,7 +56,7 @@ int main() {
     std::vector<std::string> gameInfo = config->getGameInfo();
     const double costPerSpin = config->parseVar<double>("cost");
 
-    long long numberOfSpins = 5000000000LL; //logging: 100000 
+    long long numberOfSpins = 10000000LL; //logging: 100000 
 
 
 
@@ -83,22 +75,22 @@ int main() {
         cerr << "Failed to open output file." << endl; //good to check before running simulation
     }
 
-    // Call handleLoggingMode to initialize the logging mode, whether LOGGING, REPLAY, or NO_LOGGING
-    bool loggingInitialized = RandomLogGenerator::handleLoggingMode(logMode, randomLogFileName, gameDetailsFileName);
+    // Call handleLoggingMode to initialize logging/replay if the simulation mode requires it
+    bool loggingInitialized = RandomLogGenerator::handleLoggingMode(randomLogFileName, gameDetailsFileName);
 
-    if (!loggingInitialized && logMode != NO_LOGGING) {
+    if (!loggingInitialized && (simulationMode == LOG_MODE || simulationMode == REPLAY_MODE)) {
         cerr << "Error initializing logging or replay mode!" << endl;
         return 1;  // Exit if there was an error initializing logging or replay mode
     }
 
     // Depending on the selected mode, execute the corresponding simulation
-    if (simulationMode == RANDOM_MODE) { // Simulate number of spins
+    if (simulationMode == SIMULATE_MODE || simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) {
 
         int numThreads;
-        if (logMode == NO_LOGGING)
+        if (simulationMode == SIMULATE_MODE)
             numThreads = 20;
         else
-            numThreads = 1;
+            numThreads = 1;  // Logging/replay requires sequential execution
 
         double numSpinsPerThread = (double)numberOfSpins / numThreads;
 

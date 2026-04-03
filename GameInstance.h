@@ -405,7 +405,7 @@ public:
 	double calculateWaysWins(Screen& screen, bool baseGame, int currentMult = 1) {
 		double totalPay = 0;
 
-		if (logMode != NO_LOGGING) {
+		if ((simulationMode == LOG_MODE || simulationMode == REPLAY_MODE) && RandomLogGenerator::logGameDetails) {
 			RandomLogGenerator::addScreen(screen.toJson(true, true));
 		}
 		// Clear previous marked positions
