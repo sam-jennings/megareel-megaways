@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <numeric>
+#include <algorithm>  // std::upper_bound
 #include <unordered_map>
 #include <random>
 #include "RandomUtils.h"
@@ -26,6 +27,8 @@ private:
     std::map<std::string, std::vector<int>> paytable;
     std::vector<int> scatterPrizes;
     std::unordered_map<std::string, std::vector<std::string>> wildSubstitutions;
+    // Fast O(1) name → index lookup; built once in every constructor.
+    std::unordered_map<std::string, int> symbolLookup;
 
 public:
     SymbolStructure() = default;
@@ -35,6 +38,7 @@ public:
             symbols.push_back(symbolNames[i]);
             paytable_vec.push_back(symbolPayouts[i]);
             paytable[symbolNames[i]] = symbolPayouts[i];
+            symbolLookup[symbolNames[i]] = static_cast<int>(i);
         }
     }
 
@@ -44,6 +48,7 @@ public:
         : symbols(symbolNames), paytable_vec(symbolPayouts), wildSubstitutions(wildSubs) {
         for (size_t i = 0; i < symbolNames.size(); ++i) {
             paytable[symbolNames[i]] = symbolPayouts[i];
+            symbolLookup[symbolNames[i]] = static_cast<int>(i);
         }
     }
 
@@ -64,10 +69,9 @@ public:
     // Additional functionality for SymbolStructure can go here
     // For example, a method to find a symbol by name and return its index or payouts
     int findSymbolIndex(const std::string& name) const {
-        for (size_t i = 0; i < symbols.size(); ++i) {
-            if (symbols[i] == name) return i;
-        }
-        return -1; // Symbol not found
+        // O(1) hash lookup — was an O(n) linear scan called on every win result.
+        auto it = symbolLookup.find(name);
+        return (it != symbolLookup.end()) ? it->second : -1;
     }
 
     const std::vector<int>* findSymbolPayouts(const std::string& name) const {
@@ -89,10 +93,21 @@ public:
 struct Reel {
     std::vector<std::string> symbols;
     std::vector<int> weights;
+    std::vector<int> cumWeights;  // precomputed cumulative weights (only when weighted)
+    int totalWeight = 0;          // precomputed total weight
 
     // Constructor to accept a vector of strings
     Reel(const std::vector<std::string>& _symbols, const std::vector<int>& _weights = {})
         : symbols(_symbols), weights(_weights) {
+        if (!_weights.empty()) {
+            cumWeights.resize(_weights.size());
+            int sum = 0;
+            for (size_t i = 0; i < _weights.size(); ++i) {
+                sum += _weights[i];
+                cumWeights[i] = sum;
+            }
+            totalWeight = sum;
+        }
     }
 
     bool isWeighted() const { return !weights.empty(); }
@@ -202,25 +217,30 @@ public:
 
     // Spin reels method - now also spins over/under if they exist
     void spinReels() {
-        std::vector<int> chosenIndices;
-        for (int reelIndex = 0; reelIndex < reels.size(); ++reelIndex) {
-            int index;
-            if (reels[reelIndex].isWeighted()) {
-                // Use weighted distribution
-                index = getRandFromDist(mask, reels[reelIndex].weights);
+        // Write directly into currentIndices — no temporary vector, no copy.
+        // currentIndices is already sized correctly from the constructor.
+        for (int reelIndex = 0; reelIndex < (int)reels.size(); ++reelIndex) {
+            const Reel& reel = reels[reelIndex];
+            if (reel.isWeighted()) {
+                // Use precomputed cumulative weights + binary search (was: getRandFromDist
+                // which re-accumulated the total on every call and did a linear scan).
+                int rnd = getRand(mask, reel.totalWeight);
+                currentIndices[reelIndex] = static_cast<int>(
+                    std::upper_bound(reel.cumWeights.begin(), reel.cumWeights.end(), rnd)
+                    - reel.cumWeights.begin());
             }
             else {
-                // Use uniform distribution
-                index = getRand(mask, reels[reelIndex].symbols.size());
+                currentIndices[reelIndex] = getRand(mask, reel.symbols.size());
             }
-            chosenIndices.push_back(index);
         }
-        currentIndices = chosenIndices;
 
         // Spin over reel if it exists
         if (overReel) {
             if (overReel->isWeighted()) {
-                currentOverIndex = getRandFromDist(overMask, overReel->weights);
+                int rnd = getRand(overMask, overReel->totalWeight);
+                currentOverIndex = static_cast<int>(
+                    std::upper_bound(overReel->cumWeights.begin(), overReel->cumWeights.end(), rnd)
+                    - overReel->cumWeights.begin());
             }
             else {
                 currentOverIndex = getRand(overMask, overReel->symbols.size());
@@ -230,7 +250,10 @@ public:
         // Spin under reel if it exists
         if (underReel) {
             if (underReel->isWeighted()) {
-                currentUnderIndex = getRandFromDist(underMask, underReel->weights);
+                int rnd = getRand(underMask, underReel->totalWeight);
+                currentUnderIndex = static_cast<int>(
+                    std::upper_bound(underReel->cumWeights.begin(), underReel->cumWeights.end(), rnd)
+                    - underReel->cumWeights.begin());
             }
             else {
                 currentUnderIndex = getRand(underMask, underReel->symbols.size());

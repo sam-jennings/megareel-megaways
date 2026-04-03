@@ -118,12 +118,29 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <!-- === Simulation speed optimisations === -->
+      <!-- /O2: maximum speed (enables inlining, loop opts, strength reduction) -->
+      <Optimization>MaxSpeed</Optimization>
+      <!-- /Ot: favour fast code over small code in every trade-off -->
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <!-- /GL: whole-program optimisation — pairs with /LTCG in the linker
+           to inline across translation units and remove dead code globally -->
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <!-- /arch:AVX2: use AVX2 SIMD on modern CPUs (Intel Haswell 2013+ /
+           AMD Ryzen).  If you see an "illegal instruction" crash, change this
+           to AdvancedVectorExtensions (AVX only, 2011+). -->
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <!-- /fp:fast: relax strict IEEE-754 rules for faster FP arithmetic.
+           Safe for RTP percentage calculations. -->
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <!-- /LTCG: link-time code generation — required counterpart to /GL -->
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

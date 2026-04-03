@@ -61,9 +61,11 @@ inline int getRand(const std::string& mask, int range) {
     }
     else {
         // Use a thread-local fast RNG seeded once per thread and reuse it across calls.
+        // Direct modulo avoids constructing a std::uniform_int_distribution object on every
+        // call and its internal rejection-sampling loop.  For the ranges used in slot sims
+        // (typically < 1 000 000) the bias from a 64-bit modulo is negligible (~1e-12).
         XorShift64Star& gen = getThreadRng();
-        std::uniform_int_distribution<> dis(0, range - 1);
-        index = static_cast<int>(dis(gen));
+        index = static_cast<int>(gen() % static_cast<uint64_t>(range));
         if (logMode == 1) {
             RandTriple randTriple = { mask, index, range };
             RandomLogGenerator::addRandom(randTriple);

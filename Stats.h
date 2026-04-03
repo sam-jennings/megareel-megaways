@@ -97,12 +97,12 @@ public:
 		freeSymPays.resize(numSymbols, std::vector<double>(maxLength, 0.0));
 	}
 	void setNumIterations(long long iterations) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		numIterations = iterations;
 	}
 
 	void trackResult(const std::string& symbol, int length, int ways, double pay, bool base) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		int symbolIndex = symbolStructure.findSymbolIndex(symbol);
 		int lengthIndex = length - 1;
 		if (base) {
@@ -115,12 +115,12 @@ public:
 	}
 
 	void recordScatterHit(int prize) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		scatterHits[prize]++;
 	}
 
 	void recordTumbleFrequency(int tumbles, bool base) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		if (base) {
 			tumbleFreq[tumbles]++;
 		} else {
@@ -129,23 +129,23 @@ public:
 	}
 
 	void recordFinalMult(int mult) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		multFreq[mult]++;
 	}
 
 	void recordFinalMultFree(int mult) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		multFreqFree[mult]++;
 	}
 
 	void recordFinalMultFreeByInit(int initMult, int finalMult) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		multFreqFreeByInit[initMult][finalMult]++;
 	}
 
 	// Record boost activation in free games
 	void recordBoostActivationFree(int boostLevel) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		boostFreqFree[boostLevel]++;
 
 		if (boostLevel == 1) {
@@ -159,7 +159,7 @@ public:
 
 	// Record when a win has a superboost applied
 	void recordWinWithSuperboost(bool baseGame, bool hasSuperboost) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		if (baseGame) {
 			totalWinsBase++;
 			if (hasSuperboost) {
@@ -193,13 +193,13 @@ public:
 
 	//record number of free spins
 	void recordFreeSpins(int freeSpins) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		freeSpinsFreq[freeSpins]++;
 	}
 
 	// Record a single free spin result (used to compute individual free-spin hit rate)
 	void recordFreeSpin(bool hit) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		totalFreeSpinsPlayed++;
 		if (hit) freeSpinHits++;
 	}
@@ -251,7 +251,7 @@ public:
 	}*/
 
 	void completeWager(const std::vector<double>& pays) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		for (size_t i = 0; i < pays.size(); i++) {
 			payVector[i] += pays[i];
 			payFrequencies[i][pays[i]]++;
@@ -277,7 +277,7 @@ public:
 	//}
 
 	void trackFeatureActivation(const std::string& featureName) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		featureHits[featureName]++; // Increment the count for the feature
 	}
 
@@ -293,7 +293,7 @@ public:
 	}
 
 	void calculateStandardDeviations() {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		standardDeviations.clear();
 		standardDeviations.resize(payFrequencies.size(), 0.0);
 
@@ -318,7 +318,7 @@ public:
 	}
 
 	void aggregate(const Stats& other) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 
 		numIterations += other.numIterations;
 		totalWin += other.totalWin;
@@ -407,7 +407,7 @@ public:
 	}
 
 	void recordWin(double amount) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		totalWins++;
 		totalWinnings += amount;
 	}
@@ -630,7 +630,7 @@ public:
 
 
 	void trackMoneyEntry(double amount) {
-		std::lock_guard<std::mutex> lock(statsMutex);
+		// No lock needed: each Stats object is owned by exactly one thread.
 		moneyEntry.first++;
 		moneyEntry.second += amount;
 	}

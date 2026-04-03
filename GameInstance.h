@@ -27,6 +27,10 @@ private:
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
 	std::unordered_map<std::string, ReelSet> allReelSets;
+	// Cached copies indexed by reelID so the spin loop can use a pointer
+	// instead of doing a full deep-copy of the ReelSet on every spin.
+	std::vector<ReelSet> cachedBaseReels;  // [0]=baseLow … [5]=freeTrigger
+	std::vector<ReelSet> cachedFreeReels;  // [0]=freeLow  … [4]=noWinX
 	std::vector<int> reelWeights, reelWeightsFree;
 	PrizeDistribution<int> ReelsPD, ReelsFreePD, superBoostPD;
 	vector<PrizeDistribution<double>> moneyPrizes;
@@ -77,6 +81,23 @@ private:
 			paytable = symbolStructure.getPaytable();
 			//screen.resize(reelHeights);
 
+			// Build the reel-set caches (one-time copies, same order as the
+			// switch statements in playBaseGame / playFreeGames).
+			cachedBaseReels = {
+				allReelSets["baseLow"],
+				allReelSets["baseHigh"],
+				allReelSets["tumbleLow"],
+				allReelSets["tumbleHigh"],
+				allReelSets["noWinX"],
+				allReelSets["freeTrigger"]
+			};
+			cachedFreeReels = {
+				allReelSets["freeLow"],
+				allReelSets["freeHigh"],
+				allReelSets["tumbleLow"],
+				allReelSets["tumbleHigh"],
+				allReelSets["noWinX"]
+			};
 		}
 
 	};
@@ -101,7 +122,7 @@ public:
 	void playBaseGame(long long numSpins) {
 		vector<double> baseVector, freeVector;
 		double basePay, tempPay;
-		ReelSet activeReels;
+		ReelSet* activeReelsPtr = nullptr;  // points into cachedBaseReels — no copy per spin
 		int globalMult;
 
 		RandomLogGenerator::setMaxRoundWin(200000);
@@ -129,29 +150,11 @@ public:
 			int reelID = ReelsPD.getRandomPrize();
 			//reelID = 0;
 			lastReelSetID = reelID;
-			switch (reelID) {
-			case 0:
-				activeReels = allReelSets["baseLow"];
-				break;
-			case 1:
-				activeReels = allReelSets["baseHigh"];
-				break;
-			case 2:
-				activeReels = allReelSets["tumbleLow"];
-				break;
-			case 3:
-				activeReels = allReelSets["tumbleHigh"];
-				break;
-			case 4:
-				activeReels = allReelSets["noWinX"];
-				break;
-			case 5:
-				activeReels = allReelSets["freeTrigger"];
-				break;
-			}
+			// Point at the cached copy — no deep-copy of reel strips every spin.
+			activeReelsPtr = &cachedBaseReels[reelID];
 
 			// This now spins main reels AND over/under reels if they exist
-			activeReels.spinReels();
+			activeReelsPtr->spinReels();
 
 			// Determine boost for over/under reels (prizes: 0=none, 1=regular, 2=superboost)
 			boostVecOver.clear();
@@ -164,20 +167,20 @@ public:
 			}
 
 			// Generate main screen
-			screen.generateScreen(activeReels);
+			screen.generateScreen(*activeReelsPtr);
 
 			// Add side symbols from the integrated reelset
-			if (activeReels.hasOverReel()) {
-				screen.addSideSymbols(true, activeReels, boostVecOver);
+			if (activeReelsPtr->hasOverReel()) {
+				screen.addSideSymbols(true, *activeReelsPtr, boostVecOver);
 			}
-			if (activeReels.hasUnderReel()) {
-				screen.addSideSymbols(false, activeReels, boostVecUnder);
+			if (activeReelsPtr->hasUnderReel()) {
+				screen.addSideSymbols(false, *activeReelsPtr, boostVecUnder);
 			}
 
 			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
 			screen.assignSuperboostMultipliers(rollSuperboost);
 
-			baseVector = handleCascades(screen, activeReels, activeReels, false, true, globalMult);
+			baseVector = handleCascades(screen, *activeReelsPtr, *activeReelsPtr, false, true, globalMult);
 			basePay = baseVector[0] + baseVector[1];
 
 			if (basePay)
@@ -220,7 +223,6 @@ public:
 		int multiplier = initMult;
 		int freeSpinsRemaining = numFreeGames;
 		int reelID;
-		ReelSet freeReelSet;
 
 
 
@@ -241,50 +243,31 @@ public:
 
 			reelID = ReelsFreePD.getRandomPrize();
 
+			// Point at the cached copy — no deep-copy of reel strips every free spin.
+			ReelSet* freeReelSetPtr = &cachedFreeReels[reelID];
 
-			switch (reelID) {
-			case 0:
-				//activeReels = allReelSets["baseLow"]; 
-				freeReelSet = allReelSets["freeLow"];
-				break;
-			case 1:
-				freeReelSet = allReelSets["freeHigh"];
-				break;
-			case 2:
-				//freeReelSet = allReelSets["baseTumble"];
-				freeReelSet = allReelSets["tumbleLow"];
-				break;
-			case 3:
-				freeReelSet = allReelSets["tumbleHigh"];
-				break;
-			case 4:
-				freeReelSet = allReelSets["noWinX"];
-				break;
-			}
-
-
-			freeReelSet.spinReels();
+			freeReelSetPtr->spinReels();
 
 			// All over/under symbols are boosted - use free game boost distributions
 			boostVecOver.clear();
 			boostVecUnder.clear();
 			for (int b = 0; b < boostOverPDVecFree.size(); ++b) {
-				boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());				
+				boostVecOver.push_back(boostOverPDVecFree[b].getRandomPrize());
 			}
 			for (int b = 0; b < boostUnderPDVecFree.size(); ++b) {
 				boostVecUnder.push_back(boostUnderPDVecFree[b].getRandomPrize());
-			}	
+			}
 
-			screen.generateScreen(freeReelSet);
-			screen.addSideSymbols(true, freeReelSet, boostVecOver);
-			screen.addSideSymbols(false, freeReelSet, boostVecUnder);
+			screen.generateScreen(*freeReelSetPtr);
+			screen.addSideSymbols(true, *freeReelSetPtr, boostVecOver);
+			screen.addSideSymbols(false, *freeReelSetPtr, boostVecUnder);
 
 			// NEW:
 			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
 			screen.assignSuperboostMultipliers(rollSuperboost);
 
 			// Handle cascades for free spins
-			tempPays = handleCascades(screen, freeReelSet, freeReelSet, false, false, multiplier);
+			tempPays = handleCascades(screen, *freeReelSetPtr, *freeReelSetPtr, false, false, multiplier);
 			pays[0] += tempPays[0];
 			pays[0] += tempPays[1];
 
