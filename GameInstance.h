@@ -2,6 +2,7 @@
 #include "GameConfig.h"
 #include "Stats.h"
 #include "Screen.h"
+#include <atomic>
 
 class GameInstance {
 
@@ -128,13 +129,14 @@ public:
 
 	// Method to simulate a single spin and return the result
 	double simulateSingleSpin() {
-		playBaseGame(1);  // Simulate one spin
+		std::atomic<long long> dummy{0};
+		playBaseGame(1, dummy);  // Simulate one spin
 		double lastSpinPayout = stats.getLastSpinPayout();  // Retrieve payout from the last spin
 		return lastSpinPayout - cost;  // Return net gain/loss (payout minus cost of one spin)
 	}
 
 
-	void playBaseGame(long long numSpins) {
+	void playBaseGame(long long numSpins, std::atomic<long long>& spinsDone) {
 		vector<double> baseVector, freeVector;
 		double basePay, tempPay;
 		ReelSet* activeReelsPtr = nullptr;  // points into cachedBaseReels — no copy per spin
@@ -229,6 +231,7 @@ public:
 				stats.trackFeatureActivation("Base");
 
 			stats.completeWager(pays);
+			spinsDone.fetch_add(1, std::memory_order_relaxed);
 		}
 	}
 

@@ -98,20 +98,60 @@ int main() {
         std::vector<std::thread> threads;
         std::vector<std::shared_ptr<Stats>> threadStats;
 
+        std::atomic<long long> completedSpins{0};
+
         for (int i = 0; i < numThreads; ++i) {
             auto stats = std::make_shared<Stats>(symbolStructure, rtpHeaders, costPerSpin);
             stats->setNumIterations(numSpinsPerThread); // Set the number of iterations for each thread
             threadStats.emplace_back(stats);
-            threads.emplace_back([config, &symbolStructure, &threadStats, i, numSpinsPerThread]() {
+            threads.emplace_back([config, &symbolStructure, &threadStats, i, numSpinsPerThread, &completedSpins]() {
                 GameInstance instance(config, symbolStructure, *threadStats[i]);
-                instance.playBaseGame(numSpinsPerThread);
+                instance.playBaseGame(numSpinsPerThread, completedSpins);
                 });
         }
 
-        // Join threads
+        // Progress monitor thread
+        std::atomic<bool> simDone{false};
+        std::thread progressThread([&completedSpins, &simDone, &timer, numberOfSpins]() {
+            auto formatTime = [](double secs) -> std::string {
+                int h = (int)(secs / 3600);
+                int m = (int)((secs - h * 3600) / 60);
+                int s = (int)(secs) % 60;
+                char buf[32];
+                if (h > 0)
+                    std::snprintf(buf, sizeof(buf), "%dh %dm %ds", h, m, s);
+                else if (m > 0)
+                    std::snprintf(buf, sizeof(buf), "%dm %ds", m, s);
+                else
+                    std::snprintf(buf, sizeof(buf), "%ds", s);
+                return std::string(buf);
+            };
+
+            while (!simDone.load(std::memory_order_relaxed)) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                long long done = completedSpins.load(std::memory_order_relaxed);
+                double elapsed = timer.stop();
+                double pct = (double)done / (double)numberOfSpins * 100.0;
+                double spinsPerSec = elapsed > 0.0 ? done / elapsed : 0.0;
+                double remaining = spinsPerSec > 0.0 ? (numberOfSpins - done) / spinsPerSec : 0.0;
+                char buf[256];
+                std::snprintf(buf, sizeof(buf),
+                    "\r  Progress: %lld / %lld  (%.1f%%)  |  Elapsed: %s  |  ETA: ~%s  |  %.1fM spins/s  ",
+                    done, numberOfSpins, pct,
+                    formatTime(elapsed).c_str(),
+                    formatTime(remaining).c_str(),
+                    spinsPerSec / 1e6);
+                std::cout << buf << std::flush;
+            }
+            std::cout << std::endl;
+        });
+
+        // Join worker threads
         for (auto& t : threads) {
             t.join();
         }
+        simDone.store(true);
+        progressThread.join();
 
         // Aggregate stats
         for (const auto& s : threadStats) {
@@ -170,7 +210,8 @@ int main() {
             Stats stats(symbolStructure, rtpHeaders, costPerSpin);
             GameInstance gameInstance(config, symbolStructure, stats);
 
-            gameInstance.playBaseGame(1); // Simulate a single spin
+            std::atomic<long long> csvDummy{0};
+            gameInstance.playBaseGame(1, csvDummy); // Simulate a single spin
 
             spinWin = stats.getLastSpinPayout() / 100;
             freeSpinWin = stats.getFreeSpinPayout() / 100;
@@ -215,4 +256,3 @@ int main() {
 
     return 0;
 }
-
