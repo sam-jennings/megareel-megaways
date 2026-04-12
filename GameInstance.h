@@ -25,6 +25,9 @@ private:
 	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
 	std::vector<PrizeDistribution<int>> boostOverPDVecFree, boostUnderPDVecFree;
 	std::vector<int> boostVecOver, boostVecUnder, cascadeWeights, cascadeWeightsFree;
+	bool isBoostMode = false;
+	PrizeDistribution<int> forceScattersPD;
+	ReelSet boostReelSet;
 	// ReelSets
 	ReelSet baseReelSet, tumbleReelSet, noWinReelSet, overReelSet, underReelSet;
 	std::unordered_map<std::string, ReelSet> allReelSets;
@@ -66,12 +69,18 @@ private:
 			boostOverPDVecFree = config->parsePDVec<int>("boostWeightsOverFree");
 			boostUnderPDVecFree = config->parsePDVec<int>("boostWeightsUnderFree");
 			superBoostPD = config->parsePrizeDistribution<int>("superBoost");
+			isBoostMode = (config->parseVar<std::string>("gameMode") == "boost");
+			
 			cascadeWeights = config->parseVec<int>("cascadeWeights");
 			cascadeWeightsFree = config->parseVec<int>("cascadeWeightsFree");
 			//boostWeights = config->parseArray<int>("boostWeights");
 			payHeaders = config->getRTPHeaders();
 			symbolStructure = config->parseSymbolStructure();
 			allReelSets = config->parseAllReelSets();
+			if (isBoostMode) {
+				forceScattersPD = config->parsePrizeDistribution<int>("forceScatters");
+				boostReelSet = allReelSets["bonusBoost"];
+			}
 			/* baseReelSet = config->parseReelSet("baseLow");
 			 tumbleReelSet = config->parseReelSet("tumbleHigh");*/
 			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
@@ -107,6 +116,7 @@ private:
 			for (auto& rs : cachedBaseReels) rs.buildSymbolIds(lookup);
 			for (auto& rs : cachedFreeReels) rs.buildSymbolIds(lookup);
 			for (auto& kv : allReelSets)     kv.second.buildSymbolIds(lookup);
+			if (isBoostMode) boostReelSet.buildSymbolIds(lookup);
 
 			// Register the wild symbol and initialise the screen name table.
 			symbolStructure.setWild("WL");
@@ -164,11 +174,13 @@ public:
 			screen.resize(reelHeights);
 
 
-			int reelID = ReelsPD.getRandomPrize();
-			//reelID = 0;
-			lastReelSetID = reelID;
-			// Point at the cached copy — no deep-copy of reel strips every spin.
-			activeReelsPtr = &cachedBaseReels[reelID];
+			if (isBoostMode) {
+				activeReelsPtr = &boostReelSet;
+			} else {
+				int reelID = ReelsPD.getRandomPrize();
+				lastReelSetID = reelID;
+				activeReelsPtr = &cachedBaseReels[reelID];
+			}
 
 			// This now spins main reels AND over/under reels if they exist
 			activeReelsPtr->spinReels();
@@ -206,6 +218,14 @@ public:
 			pays[INITIAL] += baseVector[0];
 			pays[TUMBLE] += baseVector[1];
 			pays[BASE] += basePay;
+
+			if (isBoostMode) {
+				int numScatters = forceScattersPD.getRandomPrize();
+				for (int s = 0; s < numScatters && s < numReels; ++s) {
+					int row = getRand("SC_" + std::to_string(s + 1), screen.getReelHeight(s));
+					screen.updateCell(s, row, scatterSymId);
+				}
+			}
 
 			int fgCount = screen.countSymbolOnScreen(scatterSymId, false);
 			if (fgCount >= 3) {
