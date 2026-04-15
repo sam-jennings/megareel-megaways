@@ -37,7 +37,7 @@ inline XorShift64Star& getThreadRng() {
         uint64_t a = static_cast<uint64_t>(rd());
         uint64_t b = static_cast<uint64_t>(rd());
         return (a << 32) | b;
-    }());
+        }());
     return gen;
 }
 
@@ -91,16 +91,18 @@ inline int getRandFromDist(const std::string& mask, const std::vector<int>& dist
     return index;
 }
 
-// New method to randomly choose r positions from n
+// Choose r positions from n without replacement, preserving available-list order
+// so that a given random number always maps to the same reel (required for log replay).
 inline std::vector<int> getRandomPositions(const std::string& mask, int n, int r) {
     std::vector<int> positions(n);
     std::iota(positions.begin(), positions.end(), 0);
 
     std::vector<int> chosenPositions;
+    chosenPositions.reserve(r);
     for (int i = 0; i < r; ++i) {
-        int chosenIndex = getRand(mask + "_" + std::to_string(i), n - i);
+        int chosenIndex = getRand(mask, static_cast<int>(positions.size()));
         chosenPositions.push_back(positions[chosenIndex]);
-        std::swap(positions[chosenIndex], positions[n - i - 1]);
+        positions.erase(positions.begin() + chosenIndex);
     }
 
     return chosenPositions;
