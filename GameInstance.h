@@ -209,6 +209,16 @@ public:
 			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
 			screen.assignSuperboostMultipliers(rollSuperboost);
 
+			if (isBoostMode) {
+				int numScatters = forceScattersPD.getRandomPrize();
+				vector<int> scatterReels = getRandomPositions("SR", numReels, numScatters);
+				for (int s = 0; s < numScatters && s < numReels; ++s) {
+					int reel = scatterReels[s];
+					int row = getRand("SC_" + std::to_string(reel), screen.getReelHeight(reel));
+					screen.updateCell(reel, row, scatterSymId);
+				}
+			}
+
 			baseVector = handleCascades(screen, *activeReelsPtr, *activeReelsPtr, false, true, globalMult);
 			basePay = baseVector[0] + baseVector[1];
 
@@ -219,14 +229,8 @@ public:
 			pays[TUMBLE] += baseVector[1];
 			pays[BASE] += basePay;
 
-			if (isBoostMode) {
-				int numScatters = forceScattersPD.getRandomPrize();
-				for (int s = 0; s < numScatters && s < numReels; ++s) {
-					int row = getRand("SC_" + std::to_string(s + 1), screen.getReelHeight(s));
-					screen.updateCell(s, row, scatterSymId);
-				}
-			}
-
+			
+			//RandomLogGenerator::addScreen(screen.toJson(true, true)); // just to show scatters in the log when they are forced by the boost mode
 			int fgCount = screen.countSymbolOnScreen(scatterSymId, false);
 			if (fgCount >= 3) {
 				freeVector = playFreeGames(5 * (fgCount - 3) + 10, 1);
