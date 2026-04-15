@@ -1,7 +1,7 @@
 {
   "gameName": "MegaWays",
   "RTP": "96.5%",
-  "gameMode": "ante1",
+  "gameMode": "ante0",
   "simulations": 100000000,
 
   "rows": 3,
