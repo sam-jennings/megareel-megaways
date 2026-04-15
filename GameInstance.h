@@ -25,7 +25,15 @@ private:
 	std::vector<PrizeDistribution<int>> boostOverPDVec, boostUnderPDVec;
 	std::vector<PrizeDistribution<int>> boostOverPDVecFree, boostUnderPDVecFree;
 	std::vector<int> boostVecOver, boostVecUnder, cascadeWeights, cascadeWeightsFree;
-	bool isBoostMode = false;
+	enum class GameMode {
+		REGULAR,
+		ANTE1,
+		ANTE2,
+		BUY0,
+		BUY1,
+		BOOST
+	};
+	GameMode gameMode = GameMode::REGULAR;
 	PrizeDistribution<int> forceScattersPD;
 	ReelSet boostReelSet;
 	// ReelSets
@@ -57,6 +65,19 @@ private:
 		TOTAL
 	};
 
+	static GameMode parseGameMode(const std::string& mode) {
+		if (mode == "regular") return GameMode::REGULAR;
+		if (mode == "ante1") return GameMode::ANTE1;
+		if (mode == "ante2") return GameMode::ANTE2;
+		if (mode == "buy0") return GameMode::BUY0;
+		if (mode == "buy1") return GameMode::BUY1;
+		if (mode == "boost") return GameMode::BOOST;
+		return GameMode::REGULAR;
+	}
+
+	bool isBoostMode() const { return gameMode == GameMode::BOOST; }
+	bool isBuyMode() const { return gameMode == GameMode::BUY0 || gameMode == GameMode::BUY1; }
+
 	void initializeGame() {
 		{
 			rtpKey = config->parseVar<std::string>("RTP");
@@ -69,7 +90,7 @@ private:
 			boostOverPDVecFree = config->parsePDVec<int>("boostWeightsOverFree");
 			boostUnderPDVecFree = config->parsePDVec<int>("boostWeightsUnderFree");
 			superBoostPD = config->parsePrizeDistribution<int>("superBoost");
-			isBoostMode = (config->parseVar<std::string>("gameMode") == "boost");
+			gameMode = parseGameMode(config->parseVar<std::string>("gameMode"));
 			
 			cascadeWeights = config->parseVec<int>("cascadeWeights");
 			cascadeWeightsFree = config->parseVec<int>("cascadeWeightsFree");
@@ -77,13 +98,15 @@ private:
 			payHeaders = config->getRTPHeaders();
 			symbolStructure = config->parseSymbolStructure();
 			allReelSets = config->parseAllReelSets();
-			if (isBoostMode) {
+			if (isBoostMode()) {
 				forceScattersPD = config->parsePrizeDistribution<int>("forceScatters");
 				boostReelSet = allReelSets["bonusBoost"];
 			}
 			/* baseReelSet = config->parseReelSet("baseLow");
 			 tumbleReelSet = config->parseReelSet("tumbleHigh");*/
-			reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
+			if (!isBoostMode() && !isBuyMode()) {
+				reelWeights = config->parseVec<int32_t>("reelWeights", rtpKey);
+			}
 			reelWeightsFree = config->parseVec<int32_t>("reelWeightsFree", rtpKey);
 			ReelsPD = PrizeDistribution<int>("R-WTS", std::vector<int>{0, 1, 2, 3, 4, 5}, reelWeights);
 			ReelsFreePD = PrizeDistribution<int>("FR-WTS", std::vector<int>{0, 1, 2, 3, 4}, reelWeightsFree);
@@ -94,14 +117,21 @@ private:
 
 			// Build the reel-set caches (one-time copies, same order as the
 			// switch statements in playBaseGame / playFreeGames).
-			cachedBaseReels = {
-				allReelSets["baseLow"],
-				allReelSets["baseHigh"],
-				allReelSets["tumbleLow"],
-				allReelSets["tumbleHigh"],
-				allReelSets["noWinX"],
-				allReelSets["freeTrigger"]
-			};
+			if (isBuyMode()) {
+				cachedBaseReels = {
+					allReelSets["buyBase"]
+				};
+			}
+			else {
+				cachedBaseReels = {
+					allReelSets["baseLow"],
+					allReelSets["baseHigh"],
+					allReelSets["tumbleLow"],
+					allReelSets["tumbleHigh"],
+					allReelSets["noWinX"],
+					allReelSets["freeTrigger"]
+				};
+			}
 			cachedFreeReels = {
 				allReelSets["freeLow"],
 				allReelSets["freeHigh"],
@@ -116,7 +146,7 @@ private:
 			for (auto& rs : cachedBaseReels) rs.buildSymbolIds(lookup);
 			for (auto& rs : cachedFreeReels) rs.buildSymbolIds(lookup);
 			for (auto& kv : allReelSets)     kv.second.buildSymbolIds(lookup);
-			if (isBoostMode) boostReelSet.buildSymbolIds(lookup);
+			if (isBoostMode()) boostReelSet.buildSymbolIds(lookup);
 
 			// Register the wild symbol and initialise the screen name table.
 			symbolStructure.setWild("WL");
@@ -168,15 +198,26 @@ public:
 			RandomLogGenerator::startRound();
 			std::vector<double> pays(payHeaders.size(), 0);
 			std::vector<int> reelHeights(numReels);
-			for (int r = 0; r < numReels; ++r) {
-				reelHeights[r] = reelHeightPD[r].getRandomPrize();
+			if (isBuyMode()) {
+				reelHeights = {4, 4, 4, 2, 2, 2};
+			}
+			else {
+				for (int r = 0; r < numReels; ++r) {
+					reelHeights[r] = reelHeightPD[r].getRandomPrize();
+				}
 			}
 			screen.resize(reelHeights);
 
 
-			if (isBoostMode) {
+			if (isBoostMode()) {
 				activeReelsPtr = &boostReelSet;
-			} else {
+				lastReelSetID = -1;
+			}
+			else if (isBuyMode()) {
+				lastReelSetID = 0;
+				activeReelsPtr = &cachedBaseReels[0];
+			}
+			else {
 				int reelID = ReelsPD.getRandomPrize();
 				lastReelSetID = reelID;
 				activeReelsPtr = &cachedBaseReels[reelID];
@@ -209,7 +250,7 @@ public:
 			auto rollSuperboost = [this]() { return superBoostPD.getRandomPrize(); };
 			screen.assignSuperboostMultipliers(rollSuperboost);
 
-			if (isBoostMode) {
+			if (isBoostMode()) {
 				int numScatters = forceScattersPD.getRandomPrize();
 				vector<int> scatterReels = getRandomPositions("SR", numReels, numScatters);
 				for (int s = 0; s < numScatters && s < numReels; ++s) {
