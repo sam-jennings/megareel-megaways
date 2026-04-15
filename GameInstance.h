@@ -27,8 +27,8 @@ private:
 	std::vector<int> boostVecOver, boostVecUnder, cascadeWeights, cascadeWeightsFree;
 	enum class GameMode {
 		REGULAR,
+		ANTE0,
 		ANTE1,
-		ANTE2,
 		BUY0,
 		BUY1,
 		BOOST
@@ -67,8 +67,8 @@ private:
 
 	static GameMode parseGameMode(const std::string& mode) {
 		if (mode == "regular") return GameMode::REGULAR;
+		if (mode == "ante0") return GameMode::ANTE0;
 		if (mode == "ante1") return GameMode::ANTE1;
-		if (mode == "ante2") return GameMode::ANTE2;
 		if (mode == "buy0") return GameMode::BUY0;
 		if (mode == "buy1") return GameMode::BUY1;
 		if (mode == "boost") return GameMode::BOOST;
